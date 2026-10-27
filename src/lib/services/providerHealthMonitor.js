@@ -45,6 +45,15 @@ function getOrCreateMetric(provider) {
   return providerMetrics.get(key);
 }
 
+function sanitizeErrorMessage(msg) {
+  if (!msg) return null;
+  return String(msg)
+    .replace(/(?:Bearer\s+)[a-zA-Z0-9_\-\..]{10,}/gi, "Bearer [REDACTED]")
+    .replace(/(?:sk-[a-zA-Z0-9_\-]{8,})/gi, "[REDACTED_API_KEY]")
+    .replace(/(?:key=[a-zA-Z0-9_\-]{8,})/gi, "key=[REDACTED]")
+    .slice(0, 300);
+}
+
 function calculateP95(latencies) {
   if (!latencies || latencies.length === 0) return 0;
   const sorted = [...latencies].sort((a, b) => a - b);
@@ -130,7 +139,7 @@ export function recordProviderMetric({
     m.errorCount += 1;
     m.consecutiveErrors += 1;
     m.lastErrorAt = now;
-    m.lastErrorMessage = errorMessage ? String(errorMessage).slice(0, 300) : `HTTP ${httpStatus}`;
+    m.lastErrorMessage = errorMessage ? sanitizeErrorMessage(errorMessage) : `HTTP ${httpStatus}`;
 
     if (httpStatus === 429) {
       m.rateLimitCount += 1;
@@ -141,7 +150,36 @@ export function recordProviderMetric({
     }
   }
 
+  const prevStatus = m.status;
   m.status = computeStatus(m);
+
+  if (prevStatus !== m.status) {
+    if (m.status === PROVIDER_STATUS.UNAVAILABLE || m.status === PROVIDER_STATUS.DEGRADED) {
+      import("./webhookEngine.js")
+        .then(({ dispatchWebhookEvent, WEBHOOK_EVENTS }) => {
+          dispatchWebhookEvent(WEBHOOK_EVENTS.PROVIDER_UNHEALTHY, {
+            provider: m.provider,
+            status: m.status,
+            previousStatus: prevStatus,
+            errorRate: m.totalRequests > 0 ? Number((m.errorCount / m.totalRequests).toFixed(4)) : 0,
+            lastErrorMessage: m.lastErrorMessage,
+          });
+        })
+        .catch(() => {});
+    } else if (m.status === PROVIDER_STATUS.HEALTHY && (prevStatus === PROVIDER_STATUS.UNAVAILABLE || prevStatus === PROVIDER_STATUS.DEGRADED)) {
+      import("./webhookEngine.js")
+        .then(({ dispatchWebhookEvent, WEBHOOK_EVENTS }) => {
+          dispatchWebhookEvent(WEBHOOK_EVENTS.PROVIDER_RECOVERED, {
+            provider: m.provider,
+            status: m.status,
+            previousStatus: prevStatus,
+            avgLatencyMs: m.avgLatencyMs,
+          });
+        })
+        .catch(() => {});
+    }
+  }
+
   schedulePersist();
   return { ...m };
 }
@@ -165,9 +203,14 @@ export function getProviderHealth(provider) {
   }
 
   const errorRate = m.totalRequests > 0 ? Number((m.errorCount / m.totalRequests).toFixed(4)) : 0;
+  const isStale = m.lastCheckAt ? (Date.now() - new Date(m.lastCheckAt).getTime() > 15 * 60 * 1000) : false;
+  const isP95Estimated = (m.latencies?.length || 0) < 20;
   return {
     ...m,
     errorRate,
+    isStale,
+    isP95Estimated,
+    sampleSize: m.latencies?.length || 0,
   };
 }
 
@@ -178,9 +221,14 @@ export function getAllProvidersHealth() {
   const summary = {};
   for (const [provider, metric] of providerMetrics.entries()) {
     const errorRate = metric.totalRequests > 0 ? Number((metric.errorCount / metric.totalRequests).toFixed(4)) : 0;
+    const isStale = metric.lastCheckAt ? (Date.now() - new Date(metric.lastCheckAt).getTime() > 15 * 60 * 1000) : false;
+    const isP95Estimated = (metric.latencies?.length || 0) < 20;
     summary[provider] = {
       ...metric,
       errorRate,
+      isStale,
+      isP95Estimated,
+      sampleSize: metric.latencies?.length || 0,
     };
   }
   return summary;

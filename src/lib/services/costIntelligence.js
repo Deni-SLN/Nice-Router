@@ -128,6 +128,12 @@ export function resolveModelPricingStatus(provider, model, userPricingOverride =
   return { status: PRICING_STATUS.UNKNOWN_PRICE, pricing: null, source: "unknown" };
 }
 
+function sanitizeTokenCount(val) {
+  const n = Number(val);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.floor(n);
+}
+
 /**
  * Calculate token cost with explicit status, currency conversion,
  * and double-counting prevention.
@@ -151,11 +157,11 @@ export function calculateCostWithStatus({
 
   // Check if tokens exist and are metered
   const hasTokens = tokens && typeof tokens === "object";
-  const promptTokens = hasTokens ? Number(tokens.prompt_tokens || tokens.input_tokens || 0) : 0;
-  const completionTokens = hasTokens ? Number(tokens.completion_tokens || tokens.output_tokens || 0) : 0;
-  const cachedTokens = hasTokens ? Number(tokens.cached_tokens || tokens.cache_read_input_tokens || 0) : 0;
-  const cacheCreationTokens = hasTokens ? Number(tokens.cache_creation_input_tokens || 0) : 0;
-  const reasoningTokens = hasTokens ? Number(tokens.reasoning_tokens || 0) : 0;
+  const promptTokens = hasTokens ? sanitizeTokenCount(tokens.prompt_tokens || tokens.input_tokens) : 0;
+  const completionTokens = hasTokens ? sanitizeTokenCount(tokens.completion_tokens || tokens.output_tokens) : 0;
+  const cachedTokens = hasTokens ? sanitizeTokenCount(tokens.cached_tokens || tokens.cache_read_input_tokens) : 0;
+  const cacheCreationTokens = hasTokens ? sanitizeTokenCount(tokens.cache_creation_input_tokens) : 0;
+  const reasoningTokens = hasTokens ? sanitizeTokenCount(tokens.reasoning_tokens) : 0;
 
   const totalReportedTokens = promptTokens + completionTokens;
   const isMetered = hasTokens && totalReportedTokens > 0;

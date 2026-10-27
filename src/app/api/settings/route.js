@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { getSettings, updateSettings } from "@/lib/localDb";
-import { applyOutboundProxyEnv } from "@/lib/network/outboundProxy";
-import { resetComboRotation } from "open-sse/services/combo.js";
+import { resetComboRotation } from "open-sse/services/combo";
+import { applyOutboundProxyEnv } from "@/shared/utils/outboundProxy";
+import { cookies } from "next/headers";
+import { getDashboardAuthSession, setDashboardAuthCookie, DEFAULT_PASSWORD } from "@/lib/auth/dashboardSession";
 import bcrypt from "bcryptjs";
 
 export const dynamic = "force-dynamic";
@@ -37,13 +39,43 @@ export async function GET() {
 
 export async function PATCH(request) {
   try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("auth_token")?.value;
+    const session = token ? await getDashboardAuthSession(token) : null;
+
     const body = await request.json();
 
     // Strip protected secrets before any internal handling sets them
     for (const key of PROTECTED_SETTING_KEYS) delete body[key];
 
-    // If updating password, hash it
+    // During restricted initial setup, ONLY password updates are allowed
+    if (session?.setupOnly) {
+      if (!body.newPassword) {
+        return NextResponse.json({ error: "Only password updates are permitted during initial setup" }, { status: 403 });
+      }
+      for (const k of Object.keys(body)) {
+        if (k !== "newPassword" && k !== "currentPassword") {
+          delete body[k];
+        }
+      }
+    }
+
+    let passwordWasUpdated = false;
+
+    // If updating password, hash it and validate policy
     if (body.newPassword) {
+      if (typeof body.newPassword !== "string") {
+        return NextResponse.json({ error: "Invalid password format" }, { status: 400 });
+      }
+      const newPw = body.newPassword.trim();
+      if (newPw.length < 8) {
+        return NextResponse.json({ error: "New password must be at least 8 characters long" }, { status: 400 });
+      }
+      const initialPw = process.env.INITIAL_PASSWORD || DEFAULT_PASSWORD;
+      if (newPw === "123456" || newPw === DEFAULT_PASSWORD || newPw === initialPw) {
+        return NextResponse.json({ error: "New password cannot be the default password" }, { status: 400 });
+      }
+
       const settings = await getSettings();
       const currentHash = settings.password;
 
@@ -57,15 +89,16 @@ export async function PATCH(request) {
           return NextResponse.json({ error: "Invalid current password" }, { status: 401 });
         }
       } else {
-        // First time setting password, no current password needed
-        // Allow empty currentPassword or default "123456"
-        if (body.currentPassword && body.currentPassword !== "123456") {
+        // First time setting password from default "123456"
+        if (body.currentPassword && body.currentPassword !== "123456" && body.currentPassword !== DEFAULT_PASSWORD && body.currentPassword !== initialPw) {
            return NextResponse.json({ error: "Invalid current password" }, { status: 401 });
         }
       }
 
       const salt = await bcrypt.genSalt(10);
-      body.password = await bcrypt.hash(body.newPassword, salt);
+      body.password = await bcrypt.hash(newPw, salt);
+      body.passwordChangedAt = new Date().toISOString();
+      passwordWasUpdated = true;
       delete body.newPassword;
       delete body.currentPassword;
     }
@@ -108,8 +141,17 @@ export async function PATCH(request) {
         .catch((error) => console.warn("[AutoPing] settings update failed:", error.message));
     }
 
+    if (passwordWasUpdated) {
+      await setDashboardAuthCookie(cookieStore, request, {
+        setupOnly: false,
+        mustChangePassword: false,
+        pwt: settings.passwordChangedAt,
+      });
+    }
+
     const { password, oidcClientSecret, ...safeSettings } = settings;
     safeSettings.oidcConfigured = !!(safeSettings.oidcIssuerUrl && safeSettings.oidcClientId && oidcClientSecret);
+    safeSettings.passwordUpdated = passwordWasUpdated;
     return NextResponse.json(safeSettings, { headers: SETTINGS_RESPONSE_HEADERS });
   } catch (error) {
     console.log("Error updating settings:", error);

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSettings, validateApiKey } from "@/lib/localDb";
 import { getConsistentMachineId } from "@/shared/utils/machineId";
-import { verifyDashboardAuthToken } from "@/lib/auth/dashboardSession";
+import { verifyDashboardAuthToken, getDashboardAuthSession } from "@/lib/auth/dashboardSession";
 import { hasTrustedPeerHeaders } from "@/lib/auth/trustedPeer";
 
 const CLI_TOKEN_HEADER = "x-9r-cli-token";
@@ -71,6 +71,7 @@ const PROTECTED_API_PATHS = [
   "/api/routing",
   "/api/alerts",
   "/api/analytics",
+  "/api/webhooks",
 ];
 
 // Routes that spawn child processes or read host secrets — restrict to localhost.
@@ -186,7 +187,16 @@ async function loadSettings() {
 }
 
 async function isAuthenticated(request) {
-  if (await hasValidToken(request)) return true;
+  const token = request.cookies.get("auth_token")?.value;
+  if (token) {
+    const session = await getDashboardAuthSession(token);
+    if (session) {
+      if (session.setupOnly || session.mustChangePassword) {
+        return false;
+      }
+      return true;
+    }
+  }
   const settings = await loadSettings();
   if (settings && settings.requireLogin === false) return true;
   return false;
@@ -215,6 +225,50 @@ export const __test__ = {
 
 export async function proxy(request) {
   const { pathname } = request.nextUrl;
+  const token = request.cookies.get("auth_token")?.value;
+  const session = token ? await getDashboardAuthSession(token) : null;
+  const settings = await loadSettings();
+
+  // Session expiry check: if password was changed after token issue, invalidate session
+  if (session && settings?.passwordChangedAt) {
+    const pwChangedSec = Math.floor(new Date(settings.passwordChangedAt).getTime() / 1000);
+    const tokenIatSec = session.iat || 0;
+    if (tokenIatSec > 0 && tokenIatSec < pwChangedSec - 5) {
+      if (pathname.startsWith("/api/")) {
+        return NextResponse.json(
+          { error: "Session expired because password was changed. Please log in again.", code: "SESSION_EXPIRED" },
+          { status: 401 }
+        );
+      }
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
+  }
+
+  // Setup enforcement: if token is setup-only / mustChangePassword
+  const isSetupSession = session?.setupOnly === true || session?.mustChangePassword === true;
+  const isAllowedSetupRoute =
+    (pathname === "/api/settings" && request.method === "PATCH") ||
+    pathname === "/api/auth/status" ||
+    pathname === "/api/auth/logout" ||
+    pathname === "/api/locale" ||
+    pathname === "/api/version";
+
+  if (isSetupSession) {
+    if (pathname.startsWith("/api/")) {
+      if (!isAllowedSetupRoute) {
+        return NextResponse.json(
+          {
+            error: "Initial setup required: you must change the default password before accessing dashboard or APIs.",
+            code: "SETUP_REQUIRED",
+            mustChangePassword: true,
+          },
+          { status: 403 }
+        );
+      }
+    } else if (pathname.startsWith("/dashboard")) {
+      return NextResponse.redirect(new URL("/login?mustChange=true", request.url));
+    }
+  }
 
   // Local-only gate for spawn-capable / host-secret routes.
   if (LOCAL_ONLY_PATHS.some((p) => pathname.startsWith(p))) {
@@ -238,6 +292,7 @@ export async function proxy(request) {
   // Deny-by-default for /api/* — public allow-list bypasses, everything else requires auth.
   if (pathname.startsWith("/api/")) {
     if (isPublicApi(pathname)) return NextResponse.next();
+    if (isSetupSession && isAllowedSetupRoute) return NextResponse.next();
     if (await hasValidCliToken(request) || await isAuthenticated(request))
       return NextResponse.next();
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -272,9 +327,11 @@ export async function proxy(request) {
     if (!requireLogin) return NextResponse.next();
 
     // Verify JWT token
-    const token = request.cookies.get("auth_token")?.value;
     if (token) {
-      if (await verifyDashboardAuthToken(token)) {
+      if (session) {
+        if (session.setupOnly || session.mustChangePassword) {
+          return NextResponse.redirect(new URL("/login?mustChange=true", request.url));
+        }
         return NextResponse.next();
       } else {
         return NextResponse.redirect(new URL("/login", request.url));

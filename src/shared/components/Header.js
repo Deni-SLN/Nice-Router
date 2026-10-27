@@ -76,6 +76,13 @@ const getPageInfo = (pathname) => {
       icon: "dns",
       breadcrumbs: [],
     };
+  if (pathname.includes("/webhooks"))
+    return {
+      title: "Webhooks",
+      description: "Manage outbound event webhooks and view delivery logs",
+      icon: "webhook",
+      breadcrumbs: [],
+    };
   if (pathname.includes("/combos"))
     return {
       title: "Combos",

@@ -67,6 +67,27 @@ Bukan sekadar rotasi tampilan, pemilihan model dilakukan secara deterministik da
 - **App & Client Analytics**: Metrik penggunaan dan biaya dikelompokkan berdasarkan identitas API Key aktual.
 - **AI Router Advisor**: Saran optimasi biaya dan performa secara *read-only* berdasarkan riwayat traffic aktual.
 
+### 8. 🔌 Server MCP Terbawa (Model Context Protocol)
+- Integrasi asli protokol MCP JSON-RPC 2.0 tanpa dependensi eksternal berat.
+- Menyediakan 8 tools *read-only* aman untuk asisten AI (Claude Desktop, Cursor, Antigravity, Roo Code):
+  - `get_router_status`, `get_provider_health`, `get_usage_summary`, `get_cost_summary`
+  - `get_budget_status`, `list_available_models`, `simulate_routing`, `get_recent_alerts`
+- Dukungan transport **stdio** (`scripts/mcp-server.mjs`) dan transport **HTTP** (`/api/mcp/router`).
+- Panduan koneksi lengkap tersedia di [Panduan Integrasi MCP](docs/MCP_INTEGRATION.md).
+
+### 9. 🪝 Outbound Webhook Engine & Keamanan Anti-SSRF
+- Sistem webhook berbasis event real-time untuk integrasi otomasi (Discord, Slack, n8n, Zapier, server internal).
+- 9 tipe event: `request.completed`, `request.failed`, `provider.unhealthy`, `provider.recovered`, `budget.warning`, `budget.exceeded`, `pricing.stale`, `fallback.triggered`, `circuit_breaker.opened`.
+- Tanda tangan **HMAC-SHA256** (`x-nice-signature`) dengan verifikasi timestamp untuk mencegah serangan replay.
+- Proteksi **Anti-SSRF** tingkat enterprise: memblokir akses ke loopback (localhost), IP privat (RFC 1918), link-local, dan endpoint metadata cloud (AWS/GCP/Azure).
+- Riwayat pengiriman (*delivery logs*) dan pengujian ping langsung dari antarmuka Dashboard Webhooks.
+- Panduan integrasi dan verifikasi payload tersedia di [Panduan Integrasi Webhook](docs/WEBHOOK_INTEGRATION.md).
+
+### 10. 🔒 Release Gate & Autentikasi Terproteksi
+- **Password Awal Default**: `123456` disediakan untuk inisialisasi awal.
+- **Gerbang Wajib Ganti Password (Release Gate)**: Sesi terbatas (`setupOnly`) memblokir akses dashboard dan API hingga admin mengganti password awal dengan password baru yang kuat (minimal 8 karakter, bukan `123456`, di-hash dengan `bcrypt`).
+- **Pembersihan Rahasia (*Secret Redaction*)**: API key, token sesi, dan header otorisasi otomatis disamarkan dari log dan status kesehatan.
+
 ---
 
 ## ⚡ Panduan Instalasi & Menjalankan
@@ -126,7 +147,7 @@ Nice Router dilengkapi dengan test suite komprehensif berbasis **Vitest**:
 
 ```bash
 # Menjalankan seluruh pengujian inteligensi baru
-npm --prefix tests test -- cost-intelligence.test.js provider-health-monitor.test.js smart-routing.test.js fallback-budget.test.js advisor-alerts.test.js intelligence-routes.test.js
+npm --prefix tests test -- cost-intelligence.test.js provider-health-monitor.test.js smart-routing.test.js fallback-budget.test.js advisor-alerts.test.js intelligence-routes.test.js phase-f-verification.test.js release-gate-security.test.js mcp-and-webhooks.test.js
 
 # Menjalankan semua test
 npm --prefix tests test

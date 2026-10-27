@@ -126,24 +126,47 @@ export function evaluateBudgetGuard({
     }
   }
 
-  return {
+  const finalDecision = {
     allowed: true,
     action: warningTriggered ? BUDGET_ACTION.WARNING : null,
     targetModel: requestedModel,
     reason: warningMessage || "Within budget limits.",
     warningTriggered,
   };
+
+  if (warningTriggered) {
+    import("./webhookEngine.js")
+      .then(({ dispatchWebhookEvent, WEBHOOK_EVENTS }) => {
+        dispatchWebhookEvent(WEBHOOK_EVENTS.BUDGET_WARNING, {
+          requestedModel,
+          reason: finalDecision.reason,
+        });
+      })
+      .catch(() => {});
+  }
+
+  return finalDecision;
 }
 
 function applyLimitAction(action, requestedModel, reason) {
   if (action === BUDGET_ACTION.BLOCK) {
-    return {
+    const dec = {
       allowed: false,
       action: BUDGET_ACTION.BLOCK,
       targetModel: null,
       reason: `Request blocked by Budget Guard: ${reason}`,
       warningTriggered: true,
     };
+    import("./webhookEngine.js")
+      .then(({ dispatchWebhookEvent, WEBHOOK_EVENTS }) => {
+        dispatchWebhookEvent(WEBHOOK_EVENTS.BUDGET_EXCEEDED, {
+          requestedModel,
+          action: dec.action,
+          reason: dec.reason,
+        });
+      })
+      .catch(() => {});
+    return dec;
   }
 
   if (action === BUDGET_ACTION.DOWNGRADE) {

@@ -2,13 +2,12 @@ import { NextResponse } from "next/server";
 import { getSettings } from "@/lib/localDb";
 import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
-import { setDashboardAuthCookie } from "@/lib/auth/dashboardSession";
+import { setDashboardAuthCookie, isDefaultPasswordPending, DEFAULT_PASSWORD } from "@/lib/auth/dashboardSession";
 import { isOidcConfigured } from "@/lib/auth/oidc";
 import { isSamlConfigured } from "@/lib/auth/saml.js";
 import { checkLock, recordFail, recordSuccess, getClientIp } from "@/lib/auth/loginLimiter";
-import { isLocalRequest } from "@/dashboardGuard";
 
-const RESET_HINT = "Forgot password? Reset to default via 9Router CLI → Settings → Reset Password to Default.";
+const RESET_HINT = "Forgot password? Reset via Nice Router CLI or configure initial password in settings.";
 const NO_STORE_HEADERS = { "Cache-Control": "no-store" };
 
 function isTunnelRequest(request, settings) {
@@ -29,7 +28,12 @@ export async function POST(request) {
       );
     }
 
-    const { password } = await request.json();
+    const body = await request.json().catch(() => ({}));
+    const password = typeof body?.password === "string" ? body.password : "";
+    if (!password) {
+      return NextResponse.json({ error: "Password is required" }, { status: 400 });
+    }
+
     const settings = await getSettings();
 
     // Block login via tunnel/tailscale if dashboard access is disabled
@@ -37,7 +41,6 @@ export async function POST(request) {
       return NextResponse.json({ error: "Dashboard access via tunnel is disabled" }, { status: 403 });
     }
 
-    // Default password is '123456' if not set
     const storedHash = settings.password;
 
     if (settings.authMode === "sso" || settings.authMode === "saml" || settings.authMode === "oidc") {
@@ -51,64 +54,75 @@ export async function POST(request) {
     }
 
     let isValid = false;
+    let mustChangePassword = false;
+
     if (storedHash) {
       isValid = await bcrypt.compare(password, storedHash);
-      if (!isValid && password === "123456") {
-        isValid = await bcrypt.compare("123456", storedHash);
+      if (isValid) {
+        mustChangePassword = isDefaultPasswordPending(settings);
       }
     } else {
-      // Default password is '123456'
-      const initialPassword = process.env.INITIAL_PASSWORD || "123456";
-      isValid = password === initialPassword || password === "123456";
+      // Default initial password is '123456'
+      const initialPassword = process.env.INITIAL_PASSWORD || DEFAULT_PASSWORD;
+      isValid = password === initialPassword || password === DEFAULT_PASSWORD;
+      if (isValid) {
+        mustChangePassword = true;
+      }
     }
 
     if (isValid) {
       recordSuccess(ip);
-
-      // Default password still in use on a remote client → force a password
-      // change before the dashboard is exposed remotely (keeps local UX intact).
-      const mustChangePassword =
-        !storedHash && !process.env.INITIAL_PASSWORD && !isLocalRequest(request);
+      const cookieStore = await cookies();
 
       if (mustChangePassword) {
-        // Do NOT issue a session token: a fresh install's default password is
-        // public knowledge ("123456"), so handing out a valid JWT would let any
-        // remote attacker authenticate and (e.g.) PATCH /api/settings to disable
-        // authentication entirely (CVE-2026-56679 class). Require the password
-        // to be changed first.
-        //
-        // NOTE: this intentionally leaves no remote self-service password-change
-        // path — the change-password flow (PATCH /api/settings) requires a JWT,
-        // which we deliberately withhold. A remote fresh-install user must either
-        // change the password from the local machine or set INITIAL_PASSWORD
-        // before first launch. This is a deliberate security trade-off, not an
-        // oversight: issuing any credential before the default password is
-        // rotated re-opens the exact attack chain this branch closes.
+        // Issue restricted setup session token: allows only password change endpoint
+        await setDashboardAuthCookie(cookieStore, request, {
+          setupOnly: true,
+          mustChangePassword: true,
+        });
+
         return NextResponse.json(
-          { success: false, error: "Default password must be changed before remote access. Change it from the local machine (or set INITIAL_PASSWORD).", mustChangePassword },
-          { status: 403, headers: NO_STORE_HEADERS }
+          {
+            success: true,
+            mustChangePassword: true,
+            message: "Default password in use. Please change your password to continue.",
+          },
+          { headers: NO_STORE_HEADERS }
         );
       }
 
-      const cookieStore = await cookies();
-      await setDashboardAuthCookie(cookieStore, request);
+      // Normal full-access dashboard token
+      await setDashboardAuthCookie(cookieStore, request, {
+        setupOnly: false,
+        mustChangePassword: false,
+        pwt: settings.passwordChangedAt,
+      });
 
       return NextResponse.json({ success: true, mustChangePassword: false }, { headers: NO_STORE_HEADERS });
     }
 
     const { remainingBeforeLock } = recordFail(ip);
     const postLock = checkLock(ip);
+
+    let errorMsg = "Invalid password";
     if (postLock.locked) {
-      return NextResponse.json(
-        { error: `Too many failed attempts. Try again in ${postLock.retryAfter}s. ${RESET_HINT}`, retryAfter: postLock.retryAfter, resetHint: RESET_HINT },
-        { status: 429, headers: { "Retry-After": String(postLock.retryAfter) } }
-      );
+      errorMsg = `Too many failed attempts. Try again in ${postLock.retryAfter}s.`;
+    } else if (remainingBeforeLock <= 2 && remainingBeforeLock > 0) {
+      errorMsg = `Invalid password. ${remainingBeforeLock} attempt(s) remaining before temporary lockout.`;
     }
+
     return NextResponse.json(
-      { error: `Invalid password. ${remainingBeforeLock} attempt(s) left before lockout.`, remainingBeforeLock },
-      { status: 401 }
+      {
+        error: errorMsg,
+        remaining: remainingBeforeLock,
+        locked: postLock.locked,
+        retryAfter: postLock.retryAfter || undefined,
+        resetHint: RESET_HINT,
+      },
+      { status: 401, headers: NO_STORE_HEADERS }
     );
-  } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (err) {
+    console.error("Login route error:", err);
+    return NextResponse.json({ error: "An unexpected error occurred" }, { status: 500, headers: NO_STORE_HEADERS });
   }
 }

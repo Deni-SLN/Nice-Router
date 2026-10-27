@@ -3,7 +3,7 @@
 // pre-change safety backup in migrate.js: when the stored version is lower,
 // one lightweight DB backup is taken before applying schema changes. Forgetting
 // to bump only skips that backup — it does NOT break the additive auto-sync.
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 export const PRAGMA_SQL = `
 PRAGMA journal_mode = WAL;
@@ -242,6 +242,39 @@ export const TABLES = {
       errors: "TEXT",
     },
     indexes: ["CREATE INDEX IF NOT EXISTS idx_mis_ts ON modelIntelSyncs(timestamp DESC)"],
+  },
+  webhooks: {
+    columns: {
+      id: "TEXT PRIMARY KEY",
+      name: "TEXT",
+      url: "TEXT NOT NULL",
+      events: "TEXT NOT NULL",
+      secret: "TEXT NOT NULL",
+      isActive: "INTEGER DEFAULT 1",
+      createdAt: "TEXT NOT NULL",
+      updatedAt: "TEXT NOT NULL",
+    },
+    indexes: [
+      "CREATE INDEX IF NOT EXISTS idx_wh_active ON webhooks(isActive)",
+    ],
+  },
+  webhookDeliveryLogs: {
+    columns: {
+      id: "TEXT PRIMARY KEY",
+      webhookId: "TEXT NOT NULL",
+      eventId: "TEXT NOT NULL",
+      event: "TEXT NOT NULL",
+      statusCode: "INTEGER",
+      success: "INTEGER NOT NULL",
+      attempts: "INTEGER DEFAULT 1",
+      durationMs: "INTEGER",
+      error: "TEXT",
+      createdAt: "TEXT NOT NULL",
+    },
+    indexes: [
+      "CREATE INDEX IF NOT EXISTS idx_wh_logs_wh ON webhookDeliveryLogs(webhookId)",
+      "CREATE INDEX IF NOT EXISTS idx_wh_logs_created ON webhookDeliveryLogs(createdAt DESC)",
+    ],
   },
 };
 

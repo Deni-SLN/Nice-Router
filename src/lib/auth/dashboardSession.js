@@ -6,7 +6,7 @@ import crypto from "node:crypto";
 import { DATA_DIR } from "@/lib/dataDir";
 import { getSettings } from "@/lib/localDb";
 
-const DEFAULT_PASSWORD = "123456";
+export const DEFAULT_PASSWORD = "123456";
 const SESSION_MAX_AGE_SEC = 24 * 60 * 60;
 
 function loadJwtSecret() {
@@ -30,6 +30,16 @@ export function shouldUseSecureCookie(request) {
   return forceSecureCookie || isHttpsRequest;
 }
 
+/**
+ * Checks whether the system is still using the default/initial setup password.
+ * Returns true if no custom password has been saved or passwordChangedAt is missing.
+ */
+export function isDefaultPasswordPending(settings) {
+  if (!settings) return true;
+  if (!settings.password || !settings.passwordChangedAt) return true;
+  return false;
+}
+
 export async function createDashboardAuthToken(claims = {}) {
   return new SignJWT({ authenticated: true, ...claims })
     .setProtectedHeader({ alg: "HS256" })
@@ -41,8 +51,8 @@ export async function createDashboardAuthToken(claims = {}) {
 export async function verifyDashboardAuthToken(token) {
   if (!token) return false;
   try {
-    await jwtVerify(token, SECRET);
-    return true;
+    const { payload } = await jwtVerify(token, SECRET);
+    return payload || true;
   } catch {
     return false;
   }
@@ -67,6 +77,7 @@ export async function setDashboardAuthCookie(cookieStore, request, claims = {}) 
     path: "/",
     maxAge: SESSION_MAX_AGE_SEC,
   });
+  return token;
 }
 
 export function clearDashboardAuthCookie(cookieStore) {
@@ -79,10 +90,8 @@ export async function verifyDashboardPassword(password) {
   const settings = await getSettings();
   const storedHash = settings?.password;
   if (storedHash) {
-    const ok = await bcrypt.compare(password, storedHash);
-    if (!ok && password === "123456") return await bcrypt.compare("123456", storedHash);
-    return ok;
+    return await bcrypt.compare(password, storedHash);
   }
   const initialPassword = process.env.INITIAL_PASSWORD || DEFAULT_PASSWORD;
-  return password === initialPassword || password === "123456" || password === DEFAULT_PASSWORD;
+  return password === initialPassword || password === DEFAULT_PASSWORD;
 }

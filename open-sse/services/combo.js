@@ -460,6 +460,18 @@ export async function handleComboChat({ body, models, handleSingleModel, log, co
       lastError = errorText || String(result.status);
       if (!lastStatus) lastStatus = result.status;
       log.warn("COMBO", `Model ${modelStr} failed, trying next`, { status: result.status });
+
+      import("@/lib/services/webhookEngine.js")
+        .then(({ dispatchWebhookEvent, WEBHOOK_EVENTS }) => {
+          dispatchWebhookEvent(WEBHOOK_EVENTS.FALLBACK_TRIGGERED, {
+            comboName,
+            failedModel: modelStr,
+            nextModel: rotatedModels[i + 1] || null,
+            fallbackCount,
+            error: lastError,
+          });
+        })
+        .catch(() => {});
     } catch (error) {
       // Catch unexpected exceptions to ensure fallback continues
       lastError = error.message || String(error);

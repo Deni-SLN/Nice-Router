@@ -40,7 +40,9 @@ export default function LoginPage() {
 
         if (res.ok) {
           const data = await res.json();
-          if (data.authenticated === true || data.requireLogin === false) {
+          if (data.mustChangePassword === true || (typeof window !== "undefined" && window.location.search.includes("mustChange=true"))) {
+            setMustChange(true);
+          } else if (data.authenticated === true || data.requireLogin === false) {
             window.location.assign("/dashboard");
             return;
           }
@@ -105,7 +107,7 @@ export default function LoginPage() {
       const res = await fetch("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ currentPassword: password, newPassword }),
+        body: JSON.stringify({ currentPassword: password || "123456", newPassword }),
       });
       if (res.ok) {
         window.location.assign("/dashboard");

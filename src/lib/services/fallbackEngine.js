@@ -39,6 +39,14 @@ export function getCircuitState(provider) {
   if (health.status === PROVIDER_STATUS.UNAVAILABLE && record.state === CIRCUIT_STATE.CLOSED) {
     record.state = CIRCUIT_STATE.OPEN;
     record.lastStateChange = now;
+    import("./webhookEngine.js")
+      .then(({ dispatchWebhookEvent, WEBHOOK_EVENTS }) => {
+        dispatchWebhookEvent(WEBHOOK_EVENTS.CIRCUIT_BREAKER_OPENED, {
+          provider: key,
+          reason: `Circuit breaker tripped for ${key}: provider UNAVAILABLE`,
+        });
+      })
+      .catch(() => {});
   }
 
   // Check if OPEN cooldown has elapsed -> move to HALF_OPEN

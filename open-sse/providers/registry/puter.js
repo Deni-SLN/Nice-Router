@@ -1,0 +1,37 @@
+export default {
+  id: "puter",
+  priority: 101,
+  hasFree: true,
+  alias: "pu",
+  passthroughModels: true,
+  authHint: "Get token at puter.com/dashboard -> Copy Auth Token",
+  display: {
+    name: "Puter AI",
+    icon: "cloud_circle",
+    color: "#6366F1",
+    textIcon: "PU",
+    website: "https://puter.com",
+    freeNote: "500+ models (GPT-5, Claude, Gemini, Grok, DeepSeek...) — Users pay via free Puter account",
+    notice: {
+      apiKeyUrl: "https://puter.com/dashboard",
+    },
+  },
+  category: "apikey",
+  transport: {
+    baseUrl: "https://api.puter.com/puterai/openai/v1/chat/completions",
+  },
+  models: [
+    { id: "gpt-4o-mini", name: "GPT-4o Mini (Free Puter)" },
+    { id: "gpt-4o", name: "GPT-4o" },
+    { id: "claude-haiku-4-5", name: "Claude Haiku 4.5" },
+    { id: "claude-sonnet-4-5", name: "Claude Sonnet 4.5" },
+    { id: "claude-opus-4-5", name: "Claude Opus 4.5" },
+    { id: "google/gemini-2.5-flash", name: "Gemini 2.5 Flash" },
+    { id: "google/gemini-2.5-pro", name: "Gemini 2.5 Pro" },
+    { id: "deepseek/deepseek-chat", name: "DeepSeek Chat" },
+    { id: "deepseek/deepseek-r1", name: "DeepSeek R1" },
+    { id: "llama-3.3-70b-instruct", name: "Llama 3.3 70B" },
+    { id: "qwen/qwen3-235b-a22b", name: "Qwen3 235B" },
+  ],
+  serviceKinds: ["llm"],
+};

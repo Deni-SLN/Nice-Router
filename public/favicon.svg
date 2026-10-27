@@ -1,0 +1,18 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="32" height="32" rx="8" fill="url(#gradient)"/>
+  <!-- Antennas -->
+  <line x1="10" y1="7" x2="10" y2="15" stroke="white" stroke-width="2" stroke-linecap="round"/>
+  <line x1="22" y1="7" x2="22" y2="15" stroke="white" stroke-width="2" stroke-linecap="round"/>
+  <!-- Router body -->
+  <rect x="6" y="15" width="20" height="10" rx="3" fill="white" fill-opacity="0.95"/>
+  <!-- Indicator dots -->
+  <circle cx="10" cy="20" r="1.2" fill="#047857"/>
+  <circle cx="16" cy="20" r="1.2" fill="#047857"/>
+  <circle cx="22" cy="20" r="1.2" fill="#047857"/>
+  <defs>
+    <linearGradient id="gradient" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#10B981"/>
+      <stop offset="1" stop-color="#047857"/>
+    </linearGradient>
+  </defs>
+</svg>

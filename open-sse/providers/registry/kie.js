@@ -1,0 +1,68 @@
+export default {
+  id: "kie",
+  priority: 110,
+  alias: "kie",
+  passthroughModels: true,
+  
+  
+  display: {
+    name: "KIE.AI",
+    icon: "hub",
+    color: "#F59E0B",
+    textIcon: "KI",
+    website: "https://kie.ai",
+    notice: {
+      desc: "—",
+    },
+  },
+  category: "apikey",
+  transport: {
+    baseUrl: "https://api.kie.ai/v1/chat/completions",
+    validateUrl: "https://api.kie.ai/v1/models",
+    
+    authHeader: "bearer",
+  },
+  models: [
+    {
+        "id": "claude-fable-5",
+        "name": "Claude 5 Fable"
+    },
+    {
+        "id": "claude-opus-5",
+        "name": "Claude 5 Opus"
+    },
+    {
+        "id": "claude-sonnet-5",
+        "name": "Claude 5 Sonnet"
+    },
+    {
+        "id": "claude-haiku-4-5",
+        "name": "Claude 4.5 Haiku"
+    },
+    {
+        "id": "gpt-5-6-sol",
+        "name": "GPT 5.6 Sol"
+    },
+    {
+        "id": "gpt-5-6-terra",
+        "name": "GPT 5.6 Terra"
+    },
+    {
+        "id": "gpt-5-6-luna",
+        "name": "GPT 5.6 Luna"
+    },
+    {
+        "id": "gemini-3-1-pro",
+        "name": "Gemini 3.1 Pro"
+    },
+    {
+        "id": "gemini-3-7-flash",
+        "name": "Gemini 3.7 Flash"
+    },
+    {
+        "id": "grok-4-6",
+        "name": "Grok 4.6"
+    }
+],
+  serviceKinds: ["llm"],
+};

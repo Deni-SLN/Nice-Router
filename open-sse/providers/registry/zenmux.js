@@ -1,0 +1,64 @@
+export default {
+  id: "zenmux",
+  priority: 110,
+  alias: "zm",
+  passthroughModels: true,
+  
+  
+  display: {
+    name: "ZenMux",
+    icon: "hub",
+    color: "#F97316",
+    textIcon: "ZE",
+    website: "https://zenmux.ai",
+    notice: {
+      desc: "Use your ZenMux API key in Authorization: Bearer <key>. ZenMux is fully OpenAI-compatible. Base URL: https://zenmux.ai/api/v1.",
+    },
+  },
+  category: "apikey",
+  transport: {
+    baseUrl: "https://zenmux.ai/api/v1/chat/completions",
+    validateUrl: "https://zenmux.ai/api/v1/models",
+    
+    authHeader: "bearer",
+  },
+  models: [
+    {
+        "id": "google/gemini-3.1-pro-preview",
+        "name": "Gemini 3.1 Pro Preview (ZenMux)"
+    },
+    {
+        "id": "google/gemini-3-flash-preview",
+        "name": "Gemini 3 Flash Preview (ZenMux)"
+    },
+    {
+        "id": "openai/gpt-5",
+        "name": "GPT-5 (ZenMux)"
+    },
+    {
+        "id": "anthropic/claude-sonnet-4.5",
+        "name": "Claude Sonnet 4.5 (ZenMux)"
+    },
+    {
+        "id": "anthropic/claude-opus-4.5",
+        "name": "Claude Opus 4.5 (ZenMux)"
+    },
+    {
+        "id": "deepseek/deepseek-chat",
+        "name": "DeepSeek V3.2 Chat (ZenMux)"
+    },
+    {
+        "id": "x-ai/grok-4.1-fast",
+        "name": "Grok 4.1 Fast (ZenMux)"
+    },
+    {
+        "id": "mistralai/mistral-large-2512",
+        "name": "Mistral Large 2512 (ZenMux)"
+    },
+    {
+        "id": "z-ai/glm-4.6v-flash",
+        "name": "GLM 4.6V Flash (ZenMux)"
+    }
+],
+  serviceKinds: ["llm"],
+};

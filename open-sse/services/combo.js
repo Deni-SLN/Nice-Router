@@ -318,11 +318,33 @@ export function isZeroContentResponse(data) {
  * @returns {Promise<Response>}
  */
 export async function handleComboChat({ body, models, handleSingleModel, log, comboName, comboStrategy, comboStickyLimit = 1, autoSwitch = true }) {
-  // Apply rotation strategy if enabled
-  let rotatedModels = getRotatedModels(models, comboName, comboStrategy, comboStickyLimit);
+  // Check if a Smart Routing policy is requested
+  const SMART_POLICIES = new Set(["lowest-cost", "lowest-latency", "health-based", "task-based", "capability"]);
+  let routingMetadata = null;
+
+  let rotatedModels;
+  if (SMART_POLICIES.has(comboStrategy)) {
+    try {
+      const { resolveSmartRoute } = await import("@/lib/services/smartRouting.js");
+      const routeDecision = resolveSmartRoute({
+        requestedModel: comboName,
+        candidateModels: models,
+        policy: comboStrategy,
+        body,
+      });
+      rotatedModels = routeDecision.rankedModels;
+      routingMetadata = routeDecision;
+      log?.info?.("COMBO", `Smart Routing (${comboStrategy}) selected "${routeDecision.selectedModel}" [${routeDecision.selectionReason}]`);
+    } catch {
+      rotatedModels = getRotatedModels(models, comboName, comboStrategy, comboStickyLimit);
+    }
+  } else {
+    // Apply standard rotation strategy if enabled
+    rotatedModels = getRotatedModels(models, comboName, comboStrategy, comboStickyLimit);
+  }
 
   // Auto-switch: float models that satisfy the request's required capabilities to the front.
-  if (autoSwitch) {
+  if (autoSwitch && !SMART_POLICIES.has(comboStrategy)) {
     const required = detectRequiredCapabilities(body);
     if (required.size > 0) {
       const reordered = reorderByCapabilities(rotatedModels, required);
@@ -336,9 +358,26 @@ export async function handleComboChat({ body, models, handleSingleModel, log, co
   let lastError = null;
   let earliestRetryAfter = null;
   let lastStatus = null;
+  let fallbackCount = 0;
 
   for (let i = 0; i < rotatedModels.length; i++) {
     const modelStr = rotatedModels[i];
+
+    // Circuit breaker check: avoid wasting time on known-dead providers
+    try {
+      const slash = modelStr.indexOf("/");
+      const prov = slash > 0 ? modelStr.slice(0, slash) : "";
+      if (prov) {
+        const { shouldAllowRequest } = await import("@/lib/services/fallbackEngine.js");
+        const circuit = shouldAllowRequest(prov);
+        if (!circuit.allowed) {
+          log?.warn?.("COMBO", `Skipping ${modelStr}: ${circuit.reason}`);
+          fallbackCount++;
+          continue;
+        }
+      }
+    } catch {}
+
     log.info("COMBO", `Trying model ${i + 1}/${rotatedModels.length}: ${modelStr}`);
 
     try {
@@ -365,6 +404,16 @@ export async function handleComboChat({ body, models, handleSingleModel, log, co
         }
 
         log.info("COMBO", `Model ${modelStr} succeeded`);
+        try {
+          if (result.headers && typeof result.headers.set === "function") {
+            result.headers.set("x-nice-router-selected-model", modelStr);
+            result.headers.set("x-nice-router-policy", comboStrategy || "priority");
+            if (routingMetadata?.selectionReason) {
+              result.headers.set("x-nice-router-selection-reason", encodeURIComponent(routingMetadata.selectionReason));
+            }
+            result.headers.set("x-nice-router-fallback-count", String(fallbackCount));
+          }
+        } catch {}
         return result;
       }
 
@@ -407,6 +456,7 @@ export async function handleComboChat({ body, models, handleSingleModel, log, co
       }
 
       // Fallback to next model
+      fallbackCount++;
       lastError = errorText || String(result.status);
       if (!lastStatus) lastStatus = result.status;
       log.warn("COMBO", `Model ${modelStr} failed, trying next`, { status: result.status });

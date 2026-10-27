@@ -134,20 +134,23 @@ async function ensureRingInitialized() {
 }
 
 async function calculateCost(provider, model, tokens) {
-  if (!tokens || !provider || !model) return 0;
+  if (!tokens || !provider || !model) return { costUSD: 0, costIDR: 0, status: "UNMETERED", currencyRate: 16300 };
   try {
     const { getPricingForModel } = await import("./pricingRepo.js");
     const pricing = await getPricingForModel(provider, model);
-    if (!pricing) return 0;
-
-    // Delegate the actual math to the single source of truth (avoids the two
-    // copies drifting apart — see open-sse/providers/pricing.js for the
-    // cache-inclusive prompt_tokens convention this assumes).
-    const { calculateCostFromTokens } = await import("open-sse/providers/pricing.js");
-    return calculateCostFromTokens(tokens, pricing);
+    const { calculateCostWithStatus, getExchangeRate } = await import("../../services/costIntelligence.js");
+    const { rate } = await getExchangeRate();
+    const result = calculateCostWithStatus({
+      provider,
+      model,
+      tokens,
+      pricingOverride: pricing,
+      customExchangeRate: rate,
+    });
+    return result;
   } catch (e) {
     console.error("Error calculating cost:", e);
-    return 0;
+    return { costUSD: 0, costIDR: 0, status: "UNKNOWN_PRICE", currencyRate: 16300 };
   }
 }
 
@@ -245,7 +248,17 @@ export async function saveRequestUsage(entry) {
     const db = await getAdapter();
 
     if (!entry.timestamp) entry.timestamp = new Date().toISOString();
-    entry.cost = await calculateCost(entry.provider, entry.model, entry.tokens);
+    const costResult = await calculateCost(entry.provider, entry.model, entry.tokens);
+    entry.cost = costResult?.costUSD || 0;
+    const existingMeta = typeof entry.meta === "object" ? (entry.meta || {}) : (entry.meta ? parseJson(entry.meta, {}) : {});
+    const enrichedMeta = {
+      ...existingMeta,
+      pricingStatus: costResult?.status || "UNKNOWN_PRICE",
+      costUSD: costResult?.costUSD ?? null,
+      costIDR: costResult?.costIDR ?? null,
+      currencyRate: costResult?.currencyRate || 16300,
+      isMetered: costResult?.isMetered ?? (entry.tokens && (entry.tokens.prompt_tokens || entry.tokens.completion_tokens)),
+    };
 
     const tokens = entry.tokens || {};
     const promptTokens = tokens.prompt_tokens || tokens.input_tokens || 0;
@@ -286,7 +299,7 @@ export async function saveRequestUsage(entry) {
           entry.timestamp, entry.provider || null, entry.model || null,
           entry.connectionId || null, entry.apiKey || null, entry.endpoint || null,
           promptTokens, completionTokens, entry.cost || 0, entry.status || "ok",
-          stringifyJson(tokens), stringifyJson({}),
+          stringifyJson(tokens), stringifyJson(enrichedMeta),
         ]
       );
 

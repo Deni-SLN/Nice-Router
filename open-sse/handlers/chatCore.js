@@ -485,6 +485,17 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
   if (!providerResponse.ok) {
     trackPendingRequest(model, provider, connectionId, false, true);
     const { statusCode, message, resetsAtMs } = await parseUpstreamError(providerResponse, executor);
+    const errorLatency = Date.now() - requestStartTime;
+    try {
+      const { recordProviderMetric } = await import("@/lib/services/providerHealthMonitor.js");
+      recordProviderMetric({
+        provider,
+        success: false,
+        latencyMs: errorLatency,
+        httpStatus: statusCode,
+        errorMessage: message,
+      });
+    } catch {}
     appendRequestLog({ model, provider, connectionId, status: `FAILED ${statusCode}` }).catch(() => { });
     saveRequestDetail(buildRequestDetail({
       provider, model, connectionId,

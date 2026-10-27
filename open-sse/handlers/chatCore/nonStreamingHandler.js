@@ -329,6 +329,15 @@ export async function handleNonStreamingResponse({ providerResponse, provider, m
   reqLogger.logConvertedResponse(translatedResponse);
 
   const totalLatency = Date.now() - requestStartTime;
+  try {
+    const { recordProviderMetric } = await import("@/lib/services/providerHealthMonitor.js");
+    recordProviderMetric({
+      provider,
+      success: true,
+      latencyMs: totalLatency,
+      httpStatus: 200,
+    });
+  } catch {}
   saveRequestDetail(buildRequestDetail({
     provider, model, connectionId,
     latency: { ttft: totalLatency, total: totalLatency },

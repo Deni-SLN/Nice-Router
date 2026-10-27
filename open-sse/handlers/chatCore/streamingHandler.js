@@ -125,6 +125,16 @@ export function buildOnStreamComplete({ provider, model, connectionId, apiKey, r
       ttft: ttftAt ? ttftAt - requestStartTime : Date.now() - requestStartTime,
       total: Date.now() - requestStartTime
     };
+    try {
+      import("@/lib/services/providerHealthMonitor.js").then(({ recordProviderMetric }) => {
+        recordProviderMetric({
+          provider,
+          success: true,
+          latencyMs: latency.total,
+          httpStatus: 200,
+        });
+      }).catch(() => {});
+    } catch {}
     const safeContent = contentObj?.content || "[Empty streaming response]";
     const safeThinking = contentObj?.thinking || null;
 

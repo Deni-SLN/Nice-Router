@@ -53,7 +53,7 @@ export async function handleChat(request, clientRawRequest = null) {
   // Claude Code marks a 1M-context request as `<model>[1m]`; the marker matches
   // no combo, alias or provider/model pair, so it must not reach resolution.
   // The capability travels in the anthropic-beta header, forwarded as-is.
-  const { model: modelStr, contextMarker } = stripModelContextMarker(body.model);
+  let { model: modelStr, contextMarker } = stripModelContextMarker(body.model);
   if (contextMarker) body.model = modelStr;
 
   // Request summary is emitted as the unified "▶" line in chatCore (has fmt/thinking/account)
@@ -93,6 +93,28 @@ export async function handleChat(request, clientRawRequest = null) {
   const keyAccess = await getKeyAccessContext(request);
   const keyAccessDenied = await enforceKeyAccess(keyAccess, modelStr);
   if (keyAccessDenied) return keyAccessDenied;
+
+  // Budget Guard check
+  try {
+    const { evaluateBudgetGuard } = await import("@/lib/services/budgetGuard.js");
+    const { resolveModelPricingStatus } = await import("@/lib/services/costIntelligence.js");
+    const pricingRes = resolveModelPricingStatus("", modelStr);
+    const budgetDecision = evaluateBudgetGuard({
+      apiKey,
+      requestedModel: modelStr,
+      pricingStatus: pricingRes.status,
+    });
+    if (!budgetDecision.allowed) {
+      log.warn("BUDGET", budgetDecision.reason);
+      return errorResponse(HTTP_STATUS.TOO_MANY_REQUESTS, budgetDecision.reason);
+    }
+    if (budgetDecision.action === "downgrade" && budgetDecision.targetModel && budgetDecision.targetModel !== modelStr) {
+      log.info("BUDGET", `Downgrading request "${modelStr}" to approved free model "${budgetDecision.targetModel}"`);
+      modelStr = budgetDecision.targetModel;
+    }
+  } catch (err) {
+    log.warn("BUDGET", `Budget guard check bypassed on error: ${err.message}`);
+  }
 
   // Bypass naming/warmup requests before combo rotation to avoid wasting rotation slots
   const userAgent = request?.headers?.get("user-agent") || "";

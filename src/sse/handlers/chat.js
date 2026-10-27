@@ -98,11 +98,22 @@ export async function handleChat(request, clientRawRequest = null) {
   try {
     const { evaluateBudgetGuard } = await import("@/lib/services/budgetGuard.js");
     const { resolveModelPricingStatus } = await import("@/lib/services/costIntelligence.js");
+    const { getDailyAndMonthlySpendUSD } = await import("@/lib/db/repos/usageRepo.js");
+    
+    let spendMetrics = { currentDaySpendUSD: 0, currentMonthSpendUSD: 0, currentKeyDaySpendUSD: 0, currentKeyMonthSpendUSD: 0 };
+    try {
+      spendMetrics = await getDailyAndMonthlySpendUSD(apiKey);
+    } catch {}
+
     const pricingRes = resolveModelPricingStatus("", modelStr);
     const budgetDecision = evaluateBudgetGuard({
       apiKey,
       requestedModel: modelStr,
       pricingStatus: pricingRes.status,
+      currentDaySpendUSD: spendMetrics.currentDaySpendUSD,
+      currentMonthSpendUSD: spendMetrics.currentMonthSpendUSD,
+      currentKeyDaySpendUSD: spendMetrics.currentKeyDaySpendUSD,
+      currentKeyMonthSpendUSD: spendMetrics.currentKeyMonthSpendUSD,
     });
     if (!budgetDecision.allowed) {
       log.warn("BUDGET", budgetDecision.reason);

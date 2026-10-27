@@ -80,6 +80,7 @@ export function recordAlert({
   };
 
   alertStore.set(fingerprint, newAlert);
+  scheduleAlertPersist();
   return { ...newAlert };
 }
 
@@ -126,4 +127,50 @@ export function resolveAlert(alertId) {
  */
 export function clearAlerts() {
   alertStore.clear();
+}
+
+let alertKv = null;
+async function getAlertKv() {
+  if (!alertKv) {
+    try {
+      const { makeKv } = await import("../db/helpers/kvStore.js");
+      alertKv = makeKv("alert_center");
+    } catch {
+      alertKv = null;
+    }
+  }
+  return alertKv;
+}
+
+export async function persistAlertsState() {
+  try {
+    const store = await getAlertKv();
+    if (!store) return;
+    const dump = Array.from(alertStore.values());
+    await store.set("alerts", dump);
+  } catch {}
+}
+
+export async function restoreAlertsState() {
+  try {
+    const store = await getAlertKv();
+    if (!store) return;
+    const dump = await store.get("alerts", []);
+    if (Array.isArray(dump)) {
+      for (const a of dump) {
+        if (a && a.id && !alertStore.has(a.fingerprint || a.id)) {
+          alertStore.set(a.fingerprint || a.id, a);
+        }
+      }
+    }
+  } catch {}
+}
+
+let alertPersistTimeout = null;
+export function scheduleAlertPersist() {
+  if (alertPersistTimeout) return;
+  alertPersistTimeout = setTimeout(async () => {
+    alertPersistTimeout = null;
+    await persistAlertsState().catch(() => {});
+  }, 1000);
 }

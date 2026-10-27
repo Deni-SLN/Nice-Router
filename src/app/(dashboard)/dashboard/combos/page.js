@@ -51,6 +51,11 @@ const STRATEGY_OPTIONS = [
   { value: "fallback", label: "Fallback — try in order" },
   { value: "round-robin", label: "Round Robin — rotate" },
   { value: "fusion", label: "Fusion — panel + judge" },
+  { value: "lowest-cost", label: "Smart: Lowest Cost — prioritaskan biaya termurah / gratis" },
+  { value: "lowest-latency", label: "Smart: Lowest Latency — rute ke latency p95 terendah" },
+  { value: "health-based", label: "Smart: Health-Based — prioritaskan provider HEALTHY & stabil" },
+  { value: "task-based", label: "Smart: Task-Based — otomatis optimasi tipe tugas (coding/chat/agent)" },
+  { value: "capability", label: "Smart: Capability-First — saring kemampuan tools & vision" },
 ];
 
 const QUICK_CATEGORY_PRESETS = [

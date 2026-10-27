@@ -36,6 +36,7 @@ export function setBudgetConfig(newConfig) {
       ...(newConfig?.keyLimitsUSD || {}),
     },
   };
+  scheduleBudgetPersist();
   return { ...currentConfig };
 }
 
@@ -164,4 +165,48 @@ function applyLimitAction(action, requestedModel, reason) {
     reason: `Budget warning: ${reason} (Policy set to warning only).`,
     warningTriggered: true,
   };
+}
+
+let budgetKv = null;
+async function getBudgetKv() {
+  if (!budgetKv) {
+    try {
+      const { makeKv } = await import("../db/helpers/kvStore.js");
+      budgetKv = makeKv("budget_guard");
+    } catch {
+      budgetKv = null;
+    }
+  }
+  return budgetKv;
+}
+
+export async function persistBudgetConfig() {
+  try {
+    const store = await getBudgetKv();
+    if (!store) return;
+    await store.set("config", currentConfig);
+  } catch {}
+}
+
+export async function restoreBudgetConfig() {
+  try {
+    const store = await getBudgetKv();
+    if (!store) return;
+    const saved = await store.get("config", null);
+    if (saved && typeof saved === "object") {
+      currentConfig = {
+        ...DEFAULT_BUDGET_CONFIG,
+        ...saved,
+      };
+    }
+  } catch {}
+}
+
+let budgetPersistTimeout = null;
+export function scheduleBudgetPersist() {
+  if (budgetPersistTimeout) return;
+  budgetPersistTimeout = setTimeout(async () => {
+    budgetPersistTimeout = null;
+    await persistBudgetConfig().catch(() => {});
+  }, 500);
 }

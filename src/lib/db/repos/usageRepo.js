@@ -826,3 +826,57 @@ export async function getRecentLogs(limit = 200) {
     return [];
   }
 }
+
+/**
+ * Get current day and month accumulated spend (USD) from usageDaily.
+ * Used by Budget Guard to enforce daily and monthly budget caps.
+ */
+export async function getDailyAndMonthlySpendUSD(apiKey = null) {
+  try {
+    const db = await getAdapter();
+    const today = new Date();
+    const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    const monthStartKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-01`;
+
+    const rows = db.all(
+      `SELECT dateKey, data FROM usageDaily WHERE dateKey >= ? ORDER BY dateKey ASC`,
+      [monthStartKey]
+    );
+
+    let daySpend = 0;
+    let monthSpend = 0;
+    let keyDaySpend = 0;
+    let keyMonthSpend = 0;
+
+    for (const r of rows) {
+      const d = parseJson(r.data, {});
+      const c = Number(d.cost) || 0;
+      monthSpend += c;
+      if (r.dateKey === todayKey) {
+        daySpend += c;
+      }
+      if (apiKey && d.byApiKey && d.byApiKey[apiKey]) {
+        const kc = Number(d.byApiKey[apiKey].cost) || 0;
+        keyMonthSpend += kc;
+        if (r.dateKey === todayKey) {
+          keyDaySpend += kc;
+        }
+      }
+    }
+
+    return {
+      currentDaySpendUSD: Number(daySpend.toFixed(6)),
+      currentMonthSpendUSD: Number(monthSpend.toFixed(6)),
+      currentKeyDaySpendUSD: Number(keyDaySpend.toFixed(6)),
+      currentKeyMonthSpendUSD: Number(keyMonthSpend.toFixed(6)),
+    };
+  } catch (err) {
+    console.warn("[usageRepo] getDailyAndMonthlySpendUSD failed:", err.message);
+    return {
+      currentDaySpendUSD: 0,
+      currentMonthSpendUSD: 0,
+      currentKeyDaySpendUSD: 0,
+      currentKeyMonthSpendUSD: 0,
+    };
+  }
+}

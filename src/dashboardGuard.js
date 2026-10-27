@@ -67,6 +67,10 @@ const PROTECTED_API_PATHS = [
   "/api/mcp",
   "/api/translator",
   "/api/tunnel",
+  "/api/health/providers",
+  "/api/routing",
+  "/api/alerts",
+  "/api/analytics",
 ];
 
 // Routes that spawn child processes or read host secrets — restrict to localhost.
@@ -190,7 +194,12 @@ async function isAuthenticated(request) {
 
 function isPublicApi(pathname) {
   if (isPublicLlmApi(pathname)) return true;
-  return PUBLIC_API_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  // /api/health is strictly exact match (health probe only). Subroutes like /api/health/providers are protected.
+  if (pathname === "/api/health") return true;
+  return PUBLIC_API_PATHS.some((p) => {
+    if (p === "/api/health") return false;
+    return pathname === p || pathname.startsWith(`${p}/`);
+  });
 }
 
 // Shared with src/proxy.js — the mimo login branch must respect dashboard auth.

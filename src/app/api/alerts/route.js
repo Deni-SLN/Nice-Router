@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAlerts, resolveAlert } from "@/lib/services/alertCenter.js";
+import { getAlerts, resolveAlert, restoreAlertsState, scheduleAlertPersist } from "@/lib/services/alertCenter.js";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -9,6 +9,7 @@ const CORS_HEADERS = {
 
 export async function GET(request) {
   try {
+    await restoreAlertsState().catch(() => {});
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get("limit") || "50", 10);
     const severity = searchParams.get("severity");
@@ -28,6 +29,9 @@ export async function POST(request) {
 
     if (action === "resolve" && alertId) {
       const success = resolveAlert(alertId);
+      if (success) {
+        scheduleAlertPersist();
+      }
       return NextResponse.json({ ok: success, alertId }, { headers: CORS_HEADERS });
     }
 

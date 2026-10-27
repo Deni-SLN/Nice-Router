@@ -142,6 +142,7 @@ export function recordProviderMetric({
   }
 
   m.status = computeStatus(m);
+  schedulePersist();
   return { ...m };
 }
 
@@ -194,4 +195,53 @@ export function resetProviderHealth(provider = null) {
   } else {
     providerMetrics.clear();
   }
+}
+
+let kv = null;
+async function getKv() {
+  if (!kv) {
+    try {
+      const { makeKv } = await import("../db/helpers/kvStore.js");
+      kv = makeKv("provider_health");
+    } catch {
+      kv = null;
+    }
+  }
+  return kv;
+}
+
+export async function persistHealthState() {
+  try {
+    const store = await getKv();
+    if (!store) return;
+    const dump = {};
+    for (const [k, v] of providerMetrics.entries()) {
+      dump[k] = v;
+    }
+    await store.set("metrics", dump);
+  } catch {}
+}
+
+export async function restoreHealthState() {
+  try {
+    const store = await getKv();
+    if (!store) return;
+    const dump = await store.get("metrics", null);
+    if (dump && typeof dump === "object") {
+      for (const [k, v] of Object.entries(dump)) {
+        if (!providerMetrics.has(k)) {
+          providerMetrics.set(k, v);
+        }
+      }
+    }
+  } catch {}
+}
+
+let persistTimeout = null;
+export function schedulePersist() {
+  if (persistTimeout) return;
+  persistTimeout = setTimeout(async () => {
+    persistTimeout = null;
+    await persistHealthState().catch(() => {});
+  }, 1000);
 }

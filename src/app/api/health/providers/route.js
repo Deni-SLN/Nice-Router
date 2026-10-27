@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAllProvidersHealth } from "@/lib/services/providerHealthMonitor.js";
+import { getAllProvidersHealth, restoreHealthState } from "@/lib/services/providerHealthMonitor.js";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -8,6 +8,7 @@ const CORS_HEADERS = {
 };
 
 export async function GET() {
+  await restoreHealthState().catch(() => {});
   const providersHealth = getAllProvidersHealth();
   return NextResponse.json({ ok: true, data: providersHealth }, { headers: CORS_HEADERS });
 }

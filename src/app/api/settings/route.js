@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSettings, updateSettings } from "@/lib/localDb";
 import { resetComboRotation } from "open-sse/services/combo";
-import { applyOutboundProxyEnv } from "@/shared/utils/outboundProxy";
+import { applyOutboundProxyEnv } from "@/lib/network/outboundProxy";
 import { cookies } from "next/headers";
 import { getDashboardAuthSession, setDashboardAuthCookie, DEFAULT_PASSWORD } from "@/lib/auth/dashboardSession";
 import bcrypt from "bcryptjs";

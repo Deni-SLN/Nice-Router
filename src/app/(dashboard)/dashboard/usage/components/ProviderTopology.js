@@ -32,14 +32,22 @@ function getProviderImageUrl(providerId) {
 
 // Custom provider node - rectangle with image + name
 function ProviderNode({ data }) {
-  const { label, color, imageUrl, textIcon, active } = data;
+  const { label, color, imageUrl, textIcon, active, error } = data;
   const [imgError, setImgError] = useState(false);
+  const isError = Boolean(error);
+  const borderCol = isError ? "#ef4444" : active ? color : "var(--color-border)";
+  const shadowStyle = isError
+    ? "0 0 16px rgba(239, 68, 68, 0.45)"
+    : active
+    ? `0 0 16px ${color}40`
+    : "none";
+
   return (
     <div
       className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg border-2 transition-all duration-300 bg-bg"
       style={{
-        borderColor: active ? color : "var(--color-border)",
-        boxShadow: active ? `0 0 16px ${color}40` : "none",
+        borderColor: borderCol,
+        boxShadow: shadowStyle,
         minWidth: "150px",
       }}
     >
@@ -51,7 +59,7 @@ function ProviderNode({ data }) {
       {/* Provider icon */}
       <div
         className="w-8 h-8 rounded-md flex items-center justify-center shrink-0"
-        style={{ backgroundColor: `${color}15` }}
+        style={{ backgroundColor: isError ? "rgba(239, 68, 68, 0.15)" : `${color}15` }}
       >
         {imageUrl && !imgError ? (
           <img
@@ -67,25 +75,37 @@ function ProviderNode({ data }) {
             }}
           />
         ) : (
-          <span className="text-sm font-bold" style={{ color }}>{textIcon}</span>
+          <span className="text-sm font-bold" style={{ color: isError ? "#ef4444" : color }}>{textIcon}</span>
         )}
       </div>
 
       {/* Provider name */}
-      <span
-        className="text-base font-medium truncate"
-        style={{ color: active ? color : "var(--color-text)" }}
-      >
-        {label}
-      </span>
+      <div className="flex flex-col min-w-0 flex-1">
+        <span
+          className="text-base font-medium truncate"
+          style={{ color: isError ? "#ef4444" : active ? color : "var(--color-text)" }}
+        >
+          {label}
+        </span>
+        {isError && (
+          <span className="text-[10px] font-semibold text-red-500 uppercase tracking-tight">
+            Gagal Tersambung
+          </span>
+        )}
+      </div>
 
-      {/* Active indicator */}
-      {active && (
+      {/* Active / Error indicator */}
+      {isError ? (
+        <span className="relative flex h-2.5 w-2.5 shrink-0" title="Gagal Tersambung">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+        </span>
+      ) : active ? (
         <span className="relative flex h-2 w-2 shrink-0">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: color }} />
           <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: color }} />
         </span>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -133,7 +153,10 @@ RouterNode.propTypes = {
   data: PropTypes.object.isRequired,
 };
 
-// Active: electric kame beam (multi-layer stroke + sparks). Idle/last/error: solid BaseEdge.
+// Active: electric beam with green (router -> provider) and orange (provider -> router).
+// Error: pulsating red edge (gagal tersambung).
+// Last: orange edge (provider -> router).
+// Idle: subtle border.
 function TopologyEdge({
   id,
   sourceX,
@@ -153,95 +176,140 @@ function TopologyEdge({
     targetY,
     targetPosition,
   });
-  const active = !!data?.active;
+
+  const active = Boolean(data?.active);
+  const error = Boolean(data?.error);
+  const last = Boolean(data?.last);
   const stroke = style.stroke || "var(--color-border)";
   const filterId = `topo-electric-${id}`;
 
-  if (!active) {
-    return <BaseEdge id={id} path={edgePath} style={{ ...style, stroke }} />;
+  // State 1: Gagal Tersambung (MERAH)
+  if (error) {
+    return (
+      <g className="topology-edge-error">
+        <defs>
+          <filter id={`topo-err-${id}`} x="-30%" y="-30%" width="160%" height="160%">
+            <feDropShadow dx="0" dy="0" stdDeviation="4" floodColor="#ef4444" floodOpacity="0.8" />
+          </filter>
+        </defs>
+        {/* Glowing red backline */}
+        <path
+          d={edgePath}
+          fill="none"
+          stroke="#ef4444"
+          strokeWidth={7}
+          strokeOpacity={0.35}
+          filter={`url(#topo-err-${id})`}
+        />
+        {/* Animated dashed red main edge */}
+        <BaseEdge
+          id={id}
+          path={edgePath}
+          style={{ stroke: "#ef4444", strokeWidth: 2.5, strokeDasharray: "6 4" }}
+          className="topology-edge-error-line"
+        />
+        {/* Pulsing warning particles */}
+        <circle r={3.5} fill="#ef4444" style={{ filter: "drop-shadow(0 0 5px #ef4444)" }}>
+          <animateMotion dur="1.2s" repeatCount="indefinite" path={edgePath} />
+        </circle>
+      </g>
+    );
   }
 
-  return (
-    <g className="topology-edge-electric">
-      <defs>
-        <filter id={filterId} x="-40%" y="-40%" width="180%" height="180%">
-          <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="2" result="noise">
-            <animate attributeName="baseFrequency" values="0.8;1.4;0.8" dur="0.25s" repeatCount="indefinite" />
-          </feTurbulence>
-          <feDisplacementMap in="SourceGraphic" in2="noise" scale="3.5" xChannelSelector="R" yChannelSelector="G" />
-        </filter>
-      </defs>
-      {/* Outer electric halo */}
-      <path
-        d={edgePath}
-        fill="none"
-        stroke="#22d3ee"
-        strokeWidth={10}
-        strokeOpacity={0.35}
-        strokeLinecap="round"
-        filter={`url(#${filterId})`}
-        className="topology-edge-halo"
-      />
-      {/* Mid plasma */}
-      <path
-        d={edgePath}
-        fill="none"
-        stroke="#4ade80"
-        strokeWidth={5}
-        strokeOpacity={0.85}
-        strokeLinecap="round"
-        filter={`url(#${filterId})`}
-        className="topology-edge-plasma"
-      />
-      {/* Hot white core */}
-      <BaseEdge
-        id={id}
-        path={edgePath}
-        style={{ stroke: "#f8fafc", strokeWidth: 2.2, opacity: 1 }}
-        className="topology-edge-kame"
-      />
-      {/* Energy orbs */}
-      {Array.from({ length: KAME_PARTICLE_COUNT }, (_, i) => (
-        <circle
-          key={`${id}-p-${i}`}
-          r={i % 2 === 0 ? 4 : 2.5}
-          fill={i % 3 === 0 ? "#fde047" : i % 3 === 1 ? "#67e8f9" : "#fff"}
-          opacity={0.95}
-          style={{ filter: "drop-shadow(0 0 4px #22d3ee)" }}
-        >
-          <animateMotion
-            dur={`${0.4 + i * 0.08}s`}
-            repeatCount="indefinite"
-            path={edgePath}
-            begin={`${i * 0.09}s`}
-          />
+  // State 2: Active (HIJAU input token: Router -> Provider, ORANGE output token: Provider -> Router)
+  if (active) {
+    return (
+      <g className="topology-edge-electric">
+        <defs>
+          <filter id={filterId} x="-40%" y="-40%" width="180%" height="180%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="2" result="noise">
+              <animate attributeName="baseFrequency" values="0.8;1.4;0.8" dur="0.25s" repeatCount="indefinite" />
+            </feTurbulence>
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="3" xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+          <linearGradient id={`grad-${id}`} x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#10b981" />
+            <stop offset="50%" stopColor="#38bdf8" />
+            <stop offset="100%" stopColor="#f97316" />
+          </linearGradient>
+        </defs>
+
+        {/* Outer glowing halo */}
+        <path
+          d={edgePath}
+          fill="none"
+          stroke={`url(#grad-${id})`}
+          strokeWidth={8}
+          strokeOpacity={0.35}
+          strokeLinecap="round"
+          filter={`url(#${filterId})`}
+          className="topology-edge-halo"
+        />
+
+        {/* Mid dual stream core line */}
+        <BaseEdge
+          id={id}
+          path={edgePath}
+          style={{ stroke: `url(#grad-${id})`, strokeWidth: 2.5, opacity: 0.95 }}
+          className="topology-edge-plasma"
+        />
+
+        {/* Hijau: Input Tokens (Router -> Provider) */}
+        {Array.from({ length: 4 }, (_, i) => (
+          <circle
+            key={`${id}-in-${i}`}
+            r={i % 2 === 0 ? 3.5 : 2.5}
+            fill="#10b981"
+            opacity={0.95}
+            style={{ filter: "drop-shadow(0 0 5px #10b981)" }}
+          >
+            <animateMotion
+              dur={`${0.5 + i * 0.1}s`}
+              repeatCount="indefinite"
+              path={edgePath}
+              begin={`${i * 0.12}s`}
+            />
+          </circle>
+        ))}
+
+        {/* Orange: Output Tokens / Respon (Provider -> Router) */}
+        {Array.from({ length: 4 }, (_, i) => (
+          <circle
+            key={`${id}-out-${i}`}
+            r={i % 2 === 0 ? 3.5 : 2.5}
+            fill="#f97316"
+            opacity={0.95}
+            style={{ filter: "drop-shadow(0 0 5px #f97316)" }}
+          >
+            <animateMotion
+              dur={`${0.5 + i * 0.1}s`}
+              repeatCount="indefinite"
+              path={edgePath}
+              keyPoints="1;0"
+              keyTimes="0;1"
+              begin={`${i * 0.12 + 0.05}s`}
+            />
+          </circle>
+        ))}
+      </g>
+    );
+  }
+
+  // State 3: Last connected / response path (ORANGE: Provider -> Router)
+  if (last) {
+    return (
+      <g className="topology-edge-last">
+        <BaseEdge id={id} path={edgePath} style={{ stroke: "#f97316", strokeWidth: 2, opacity: 0.8 }} />
+        {/* Soft orange pulse particle from provider back to router */}
+        <circle r={2.5} fill="#f97316" opacity={0.85} style={{ filter: "drop-shadow(0 0 4px #f97316)" }}>
+          <animateMotion dur="2.2s" repeatCount="indefinite" path={edgePath} keyPoints="1;0" keyTimes="0;1" />
         </circle>
-      ))}
-      {/* Electric sparks (short-lived blink along path) */}
-      {Array.from({ length: SPARK_COUNT }, (_, i) => (
-        <circle
-          key={`${id}-s-${i}`}
-          r={1.8}
-          fill="#e0f2fe"
-          opacity={0}
-        >
-          <animate
-            attributeName="opacity"
-            values="0;1;0;0;1;0"
-            dur={`${0.35 + (i % 3) * 0.1}s`}
-            begin={`${i * 0.07}s`}
-            repeatCount="indefinite"
-          />
-          <animateMotion
-            dur={`${0.28 + i * 0.05}s`}
-            repeatCount="indefinite"
-            path={edgePath}
-            begin={`${i * 0.11}s`}
-          />
-        </circle>
-      ))}
-    </g>
-  );
+      </g>
+    );
+  }
+
+  // State 4: Idle
+  return <BaseEdge id={id} path={edgePath} style={{ ...style, stroke }} />;
 }
 
 TopologyEdge.propTypes = {
@@ -293,8 +361,8 @@ function buildLayout(providers, activeSet, lastSet, errorSet) {
 
   const edgeStyle = (active, last, error) => {
     if (error) return { stroke: "#ef4444", strokeWidth: 2.5, opacity: 0.9 };
-    if (active) return { stroke: "#22d3ee", strokeWidth: 3.5, opacity: 1 };
-    if (last) return { stroke: "#f59e0b", strokeWidth: 2, opacity: 0.7 };
+    if (active) return { stroke: "#10b981", strokeWidth: 3, opacity: 1 };
+    if (last) return { stroke: "#f97316", strokeWidth: 2, opacity: 0.8 };
     return { stroke: "var(--color-border)", strokeWidth: 1, opacity: 0.3 };
   };
 
@@ -310,6 +378,8 @@ function buildLayout(providers, activeSet, lastSet, errorSet) {
       imageUrl: getProviderImageUrl(p.provider),
       textIcon: config.textIcon || (p.provider || "?").slice(0, 2).toUpperCase(),
       active,
+      error,
+      last,
     };
 
     // Distribute evenly starting from top (−π/2), clockwise
@@ -437,7 +507,23 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
   }, [nodes.length]);
 
   return (
-    <div ref={containerRef} className="h-[320px] w-full min-w-0 rounded-lg border border-border bg-bg-subtle/30 sm:h-[480px]">
+    <div ref={containerRef} className="relative h-[320px] w-full min-w-0 rounded-lg border border-border bg-bg-subtle/30 sm:h-[480px]">
+      {/* Topology Status Legend Overlay */}
+      <div className="absolute top-2.5 left-2.5 z-10 hidden sm:flex flex-wrap items-center gap-2.5 px-3 py-1.5 rounded-lg bg-surface/90 border border-border/80 backdrop-blur-md text-[11px] font-medium text-text-muted shadow-sm pointer-events-none select-none">
+        <div className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_6px_#10b981]" />
+          <span className="text-text-main font-semibold">Hijau: Input (Router → Provider)</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-orange-500 shadow-[0_0_6px_#f97316]" />
+          <span className="text-text-main font-semibold">Oranye: Output (Provider → Router)</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_6px_#ef4444]" />
+          <span className="text-red-500 font-semibold">Merah: Gagal Tersambung</span>
+        </div>
+      </div>
+
       {providers.length === 0 ? (
         <div className="h-full flex items-center justify-center text-text-muted text-sm">
           No providers connected

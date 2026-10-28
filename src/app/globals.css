@@ -533,6 +533,9 @@ button:disabled,
   stroke-dasharray: 14 10;
   animation: topology-edge-dash 0.18s linear infinite, topology-edge-flicker 0.22s steps(3) infinite;
 }
+.topology-edge-error-line {
+  animation: topology-edge-dash 0.35s linear infinite;
+}
 
 /* React Flow controls: match app theme */
 .react-flow-controls-custom {

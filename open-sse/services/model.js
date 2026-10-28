@@ -19,6 +19,7 @@ for (const entry of REGISTRY) {
 
 const BUILTIN_MODEL_ALIASES = {
   "grok-build": "gcli/grok-build",
+  "reflection/beam-1.0-501b-a23b": "openrouter/reflection/beam-1.0-501b-a23b",
 };
 
 /**
@@ -34,6 +35,16 @@ export function resolveProviderAlias(aliasOrId) {
 export function parseModel(modelStr) {
   if (!modelStr) {
     return { provider: null, model: null, isAlias: false, providerAlias: null };
+  }
+
+  // Exact match in builtin model aliases takes precedence over slash-splitting
+  if (BUILTIN_MODEL_ALIASES[modelStr]) {
+    return {
+      provider: null,
+      model: modelStr,
+      isAlias: true,
+      providerAlias: null,
+    };
   }
 
   // Check if standard format: provider/model or alias/model

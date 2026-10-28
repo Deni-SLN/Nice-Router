@@ -29,6 +29,7 @@ describe("Intelligence API Routes Contract", () => {
   });
 
   it("POST /api/routing/simulate returns dry-run smart routing decision", async () => {
+    resetProviderHealth();
     const req = new Request("http://localhost/api/routing/simulate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

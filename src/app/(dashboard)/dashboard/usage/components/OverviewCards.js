@@ -111,7 +111,7 @@ export default function OverviewCards({ stats }) {
 
         <Card className="flex min-w-0 flex-col items-center text-center gap-1 px-3 py-3 sm:px-4">
           <span className="text-text-muted text-xs uppercase font-semibold sm:text-sm">Output Tokens</span>
-          <span className="w-full truncate text-lg font-bold text-success xl:text-xl" title={fmt(stats.totalCompletionTokens)}>
+          <span className="w-full truncate text-lg font-bold text-error xl:text-xl" title={fmt(stats.totalCompletionTokens)}>
             {fmt(stats.totalCompletionTokens)}
           </span>
         </Card>

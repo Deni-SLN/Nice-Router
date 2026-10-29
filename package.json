@@ -1,7 +1,7 @@
 {
   "name": "nice-router-app",
-  "version": "1.1.0",
-  "description": "Nice Router v1.1.0 - Intelligent AI Gateway & Smart Routing Platform with 330+ Providers, Cost Intelligence, and Auto-Fallback",
+  "version": "1.2.0",
+  "description": "Nice Router v1.2.0 - Intelligent AI Gateway & Smart Routing Platform with 330+ Providers, Cost Intelligence, and Auto-Fallback",
   "private": true,
   "scripts": {
     "dev": "next dev --port 20127",

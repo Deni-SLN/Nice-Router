@@ -62,7 +62,7 @@ describe("Nice Router MCP Server", () => {
   it("executes get_router_status without exposing secrets", async () => {
     const status = await executeMcpTool("get_router_status");
     expect(status.name).toBe("Nice Router");
-    expect(status.version).toBe("1.1.0");
+    expect(status.version).toBe("1.2.0");
     expect(status).toHaveProperty("uptimeSeconds");
     expect(status).toHaveProperty("supportedSmartPolicies");
     expect(status).not.toHaveProperty("password");

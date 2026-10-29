@@ -1,6 +1,6 @@
 # Nice Router — Model Context Protocol (MCP) Integration Guide
 
-Nice Router v1.0.0 provides a native, read-only MCP server conforming to the **Model Context Protocol (2024-11-05)** specification. This allows external AI assistants (Claude Desktop, Cursor, Antigravity, Cline, Windsurf) to inspect router status, monitor real-time provider health, simulate intelligent routing, and query budgets safely without exposing private API keys or secrets.
+Nice Router v1.2.0 provides a native, read-only MCP server conforming to the **Model Context Protocol (2024-11-05)** specification. This allows external AI assistants (Claude Desktop, Cursor, Antigravity, Cline, Windsurf) to inspect router status, monitor real-time provider health, simulate intelligent routing, and query budgets safely without exposing private API keys or secrets.
 
 ---
 
@@ -88,5 +88,5 @@ All tools provided by the Nice Router MCP server are strictly **read-only** and 
 ## 4. Security & Data Protection
 
 - **No Secret Leakage**: API keys, credentials, and passwords are never returned in MCP responses.
-- **No Mutation**: Configuration cannot be modified via MCP tools in v1.0.0.
+- **No Mutation**: Configuration cannot be modified via MCP tools in v1.2.0.
 - **Fail-Safe Simulation**: `simulate_routing` operates purely in memory using dry-run algorithms; no external API calls are made.

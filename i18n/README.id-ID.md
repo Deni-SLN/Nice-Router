@@ -1,16 +1,16 @@
-# Nice Router (v1.1.0) 🚀
+# Nice Router (v1.2.0) 🚀
 ### Gateway AI Pintar, Perutean Cerdas & Penghemat Token
 
 [![GitHub stars](https://img.shields.io/github/stars/Deni-SLN/Nice-Router.svg?style=social)](https://github.com/Deni-SLN/Nice-Router)
 [![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg)](../LICENSE)
-[![Release](https://img.shields.io/badge/Release-v1.1.0-10b981.svg)](https://github.com/Deni-SLN/Nice-Router/releases)
+[![Release](https://img.shields.io/badge/Release-v1.2.0-10b981.svg)](https://github.com/Deni-SLN/Nice-Router/releases)
 [![Sponsor](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Ko--fi-ff5e5b.svg?logo=kofi&logoColor=white)](https://ko-fi.com/deni26)
 
 **Nice Router** adalah platform AI Gateway cerdas berperforma tinggi berbasis arsitektur 9Router yang telah ditingkatkan secara menyeluruh. Menghubungkan semua developer tools AI coding Anda (**Claude Code, Cursor, Antigravity, Copilot, Codex, Gemini CLI, OpenCode, Cline, OpenClaw**) ke **330+ AI Providers** dengan kontrol biaya real-time, monitoring kesehatan provider aktual, dan perutean cerdas (*smart routing*).
 
 ---
 
-## 🌟 Fitur Utama Nice Router v1.1.0
+## 🌟 Fitur Utama Nice Router v1.2.0
 
 ### 1. 🌐 Dukungan 330+ Penyedia AI (Integrasi OmniRoute)
 - Hubungkan dan kelola **330+ provider AI** global dan lokal dalam satu dashboard terpadu:

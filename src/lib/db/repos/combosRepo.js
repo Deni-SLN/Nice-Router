@@ -50,7 +50,12 @@ export async function getComboByName(name) {
   const db = await getAdapter();
   await ensureAutoSyncColumn(db);
   const row = db.get(`SELECT * FROM combos WHERE name = ?`, [name]);
-  return rowToCombo(row);
+  if (row) return rowToCombo(row);
+  if (name === "free-models") {
+    const freeRow = db.get(`SELECT * FROM combos WHERE autoSyncFree = 1 OR autoSyncCategory = 'free' ORDER BY createdAt ASC LIMIT 1`);
+    if (freeRow) return { ...rowToCombo(freeRow), name: "free-models" };
+  }
+  return null;
 }
 
 export async function createCombo(data) {

@@ -80,4 +80,35 @@ describe("/v1/models combo limits", () => {
       capabilities: { contextWindow: 200000 },
     });
   });
+
+  it("ignores non-chat and 8k outlier seats when long-context seats exist, and aliases free-models", async () => {
+    db.getProviderConnections.mockResolvedValue([]);
+    db.getCombos.mockResolvedValue([
+      {
+        name: "gratis",
+        autoSyncFree: true,
+        autoSyncCategory: "free",
+        models: [
+          "google/gemini-2.5-flash-preview-tts",
+          "opencode/mimo-v2-pro-free",
+          "nvidia/deepseek-ai/deepseek-v4-flash",
+        ],
+      },
+    ]);
+    setCatalogSource({
+      getModalities: () => null,
+      getLimits: (_provider, model) =>
+        model.includes("tts") ? { contextWindow: 8192, maxOutput: 16384 } : null,
+    });
+    try {
+      const models = await buildModelsList(["llm"]);
+      const gratis = models.find((m) => m.id === "gratis");
+      const freeModels = models.find((m) => m.id === "free-models");
+      expect(gratis?.context_length).toBeGreaterThanOrEqual(128000);
+      expect(gratis?.capabilities?.contextWindow).toBe(gratis?.context_length);
+      expect(freeModels?.context_length).toBe(gratis?.context_length);
+    } finally {
+      setCatalogSource(null);
+    }
+  });
 });

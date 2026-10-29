@@ -81,6 +81,19 @@ export function reorderByCapabilities(models, required) {
     .map((x) => x.m);
 }
 
+// Rough prompt-size estimate (~3.5 chars/token) used to keep long prompts off
+// small-context combo seats. Only the text payload is counted.
+export function estimateBodyTokens(body) {
+  if (!body || typeof body !== "object") return 0;
+  try {
+    const payload = body.messages || body.input || body.contents || body.prompt || "";
+    const sys = body.system ? JSON.stringify(body.system) : "";
+    return Math.ceil((JSON.stringify(payload).length + sys.length) / 3.5);
+  } catch {
+    return 0;
+  }
+}
+
 /**
  * Track rotation state per combo (for round-robin strategy)
  * @type {Map<string, { index: number, consecutiveUseCount: number }>}
@@ -355,6 +368,24 @@ export async function handleComboChat({ body, models, handleSingleModel, log, co
     }
   }
   
+  // Long-context guard: skip seats whose context window cannot hold the prompt.
+  // Combos publish a context based on their long-context seats, so a long prompt
+  // must never be sent to a small seat that would hard-fail upstream.
+  const estimatedPromptTokens = estimateBodyTokens(body);
+  if (estimatedPromptTokens > 0) {
+    const fitsContext = (m) => {
+      const slash = typeof m === "string" ? m.indexOf("/") : -1;
+      if (slash <= 0) return true; // nested combo decides for itself
+      const caps = getCapabilitiesForModel(m.slice(0, slash), m.slice(slash + 1));
+      return !Number.isFinite(caps?.contextWindow) || caps.contextWindow >= estimatedPromptTokens;
+    };
+    const fitting = rotatedModels.filter(fitsContext);
+    if (fitting.length > 0 && fitting.length < rotatedModels.length) {
+      log?.info?.("COMBO", `context guard: ~${estimatedPromptTokens} tokens → skipping ${rotatedModels.length - fitting.length} small-context seat(s)`);
+      rotatedModels = fitting;
+    }
+  }
+
   let lastError = null;
   let earliestRetryAfter = null;
   let lastStatus = null;

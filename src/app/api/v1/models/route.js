@@ -279,6 +279,9 @@ function comboMatchesKinds(combo, kindFilter) {
 // treated as a literal model and publishes the 200k floor. Expand nested
 // names (cycle-guarded) so the published window is the true min across the
 // whole chain.
+const NON_CHAT_SEAT_RE = /(?:^|[-_/.])(tts|image|imagen|audio|native-audio|embed|embedding|whisper|lyria|content-safety|guard)(?:$|[-_/.:])/i;
+const LONG_CONTEXT_FLOOR = 100000;
+
 function comboSeatLimits(combo, combosByName, visiting = new Set()) {
   const name = typeof combo?.name === "string" ? combo.name : null;
   if (name) {
@@ -288,6 +291,7 @@ function comboSeatLimits(combo, combosByName, visiting = new Set()) {
 
   let contextWindow = Infinity;
   let maxOutput = Infinity;
+  const seatWindows = [];
   try {
     for (const seat of Array.isArray(combo?.models) ? combo.models : []) {
       if (typeof seat !== "string") continue;
@@ -296,17 +300,29 @@ function comboSeatLimits(combo, combosByName, visiting = new Set()) {
         const nested = combosByName.get(seat);
         if (nested) {
           const nestedLimits = comboSeatLimits(nested, combosByName, visiting);
-          if (Number.isFinite(nestedLimits.contextWindow)) contextWindow = Math.min(contextWindow, nestedLimits.contextWindow);
+          if (Number.isFinite(nestedLimits.contextWindow)) seatWindows.push(nestedLimits.contextWindow);
           if (Number.isFinite(nestedLimits.maxOutput)) maxOutput = Math.min(maxOutput, nestedLimits.maxOutput);
           continue;
         }
       }
+      // Non-chat seats (TTS / image / audio / embedding / safety) never serve a
+      // chat turn, so their limits must not shrink the combo's published window.
+      if (NON_CHAT_SEAT_RE.test(seat)) continue;
       const caps = comboSeatCapabilities(seat) || getCapabilitiesForModel(null, seat);
-      if (Number.isFinite(caps?.contextWindow)) contextWindow = Math.min(contextWindow, caps.contextWindow);
+      if (Number.isFinite(caps?.contextWindow)) seatWindows.push(caps.contextWindow);
       if (Number.isFinite(caps?.maxOutput)) maxOutput = Math.min(maxOutput, caps.maxOutput);
     }
   } finally {
     if (name) visiting.delete(name);
+  }
+
+  // Small-context outliers are skipped at runtime by the combo context guard
+  // (open-sse/services/combo.js), so publish the smallest window among the
+  // long-context seats. Falls back to the plain minimum when every seat is small.
+  if (seatWindows.length > 0) {
+    const longSeats = seatWindows.filter((w) => w >= LONG_CONTEXT_FLOOR);
+    const pool = longSeats.length > 0 ? longSeats : seatWindows;
+    contextWindow = Math.min(contextWindow, ...pool);
   }
 
   return {
@@ -379,6 +395,15 @@ export async function buildModelsList(kindFilter, options = {}) {
     }
   }
 
+  // Expose "free-models" as a built-in alias for any auto-synced free combo
+  // (e.g. "gratis") when no combo is explicitly named "free-models".
+  if (Array.isArray(combos) && !combos.some((c) => c?.name === "free-models")) {
+    const freeCombo = combos.find((c) => c?.autoSyncFree || c?.autoSyncCategory === "free");
+    if (freeCombo) {
+      combos = [...combos, { ...freeCombo, name: "free-models" }];
+    }
+  }
+
   const models = [];
   const combosByName = new Map(
     combos.filter((c) => typeof c?.name === "string").map((c) => [c.name, c]),
@@ -405,7 +430,12 @@ export async function buildModelsList(kindFilter, options = {}) {
       // published no limits at all, which leaves a client to guess from the name —
       // and it guesses high (see the snake_case note on the per-provider path).
       const { contextWindow, maxOutput } = comboSeatLimits(combo, combosByName);
-      if (Number.isFinite(contextWindow)) { entry.context_length = contextWindow; entry.context_window = contextWindow; entry.max_input_tokens = contextWindow; }
+      if (Number.isFinite(contextWindow)) {
+        entry.context_length = contextWindow;
+        entry.context_window = contextWindow;
+        entry.max_input_tokens = contextWindow;
+        if (entry.capabilities) entry.capabilities.contextWindow = contextWindow;
+      }
       if (Number.isFinite(maxOutput)) { entry.max_completion_tokens = maxOutput; entry.max_output_tokens = maxOutput; }
       if (Number.isFinite(contextWindow) || Number.isFinite(maxOutput)) { entry.top_provider = { ...(Number.isFinite(contextWindow) ? { context_length: contextWindow } : {}), ...(Number.isFinite(maxOutput) ? { max_completion_tokens: maxOutput } : {}), is_moderated: false }; }
     }

@@ -8,7 +8,7 @@ import { getSettings } from "../localDb.js";
 
 export const MCP_SERVER_INFO = {
   name: "nice-router-mcp",
-  version: "1.0.0",
+  version: "1.1.0",
   protocolVersion: "2024-11-05",
 };
 
@@ -139,7 +139,7 @@ export async function executeMcpTool(name, args = {}) {
       const provCount = Object.keys(allHealth).length;
       return {
         name: "Nice Router",
-        version: "1.0.0",
+        version: "1.1.0",
         uptimeSeconds: Math.floor(process.uptime()),
         authMode: settings?.authMode || "password",
         requireLogin: settings?.requireLogin !== false,

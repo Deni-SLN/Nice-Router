@@ -327,7 +327,7 @@ export async function sendTestWebhookPing(webhookId, allowLocal = false) {
     timestamp,
     data: {
       message: "Test webhook notification from Nice Router",
-      routerVersion: "1.0.0",
+      routerVersion: "1.1.0",
       status: "operational",
     },
     maxAttempts: 1,

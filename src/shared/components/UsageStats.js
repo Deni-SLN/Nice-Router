@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { FREE_PROVIDERS, AI_PROVIDERS } from "@/shared/constants/providers";
 
 // Keep providers without serviceKinds (default LLM) or with "llm" in serviceKinds
@@ -217,6 +218,7 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
   const [viewMode, setViewMode] = useState("costs");
   const [providers, setProviders] = useState([]);
   const [periodLocal, setPeriodLocal] = useState("today");
+  const [requireApiKey, setRequireApiKey] = useState(null);
   const isInitialLoad = useRef(true);
   const hasLoadedStats = useRef(false);
   const period = periodProp ?? periodLocal;
@@ -251,6 +253,7 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
           .filter((p) => p.noAuth && !p.hidden && !seen.has(p.id) && isLLMProvider(p.id))
           .map((p) => ({ provider: p.id, name: p.name }));
         setProviders([...unique, ...noAuthProviders]);
+        fetch("/api/settings").then((r) => r.ok ? r.json() : null).then((d) => { if (d) setRequireApiKey(d.requireApiKey === true); }).catch(() => {});
       })
       .catch(() => {});
   }, []);
@@ -465,6 +468,31 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
           {fetching && (
             <span className="material-symbols-outlined text-[16px] text-text-muted animate-spin">progress_activity</span>
           )}
+        </div>
+      )}
+
+      {/* Require API Key Policy Status Banner */}
+      {!loading && requireApiKey !== null && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 px-3.5 py-2.5 rounded-lg border border-border bg-surface text-xs shadow-sm">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`w-2.5 h-2.5 rounded-full ${requireApiKey ? "bg-emerald-500 shadow-[0_0_6px_#10b981]" : "bg-amber-500"}`} />
+            <span className="font-bold text-text-main">Require API key:</span>
+            <Badge variant={requireApiKey ? "success" : "warning"} size="xs">
+              {requireApiKey ? "AKTIF" : "NONAKTIF"}
+            </Badge>
+            <span className="text-text-muted">
+              {requireApiKey
+                ? "Requests without a valid key will be rejected"
+                : "Akses tanpa key masih diizinkan secara lokal (Local / No Key mode)"}
+            </span>
+          </div>
+          <Link
+            href="/dashboard/usage?tab=apikeys"
+            className="text-primary hover:underline font-semibold inline-flex items-center gap-1 shrink-0"
+          >
+            Buka Analitik API Keys
+            <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+          </Link>
         </div>
       )}
 

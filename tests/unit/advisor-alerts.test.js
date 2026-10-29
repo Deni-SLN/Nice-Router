@@ -128,4 +128,15 @@ describe("AI Router Advisor (Read-only)", () => {
     expect(costAdv.affectedCombo).toBe("hybrid-combo");
     expect(costAdv.recommendation).toContain("lowest-cost");
   });
+
+  it("aggregates usage and token breakdown per API key with summary metrics", async () => {
+    const { getAppAnalytics } = await import("@/lib/services/appAnalytics.js");
+    const analytics = await getAppAnalytics({ period: "all" });
+    expect(analytics).toHaveProperty("items");
+    expect(analytics).toHaveProperty("summary");
+    expect(Array.isArray(analytics.items)).toBe(true);
+    expect(analytics.summary).toHaveProperty("totalPromptTokens");
+    expect(analytics.summary).toHaveProperty("totalCompletionTokens");
+    expect(analytics.summary.totalTokens).toBe(analytics.summary.totalPromptTokens + analytics.summary.totalCompletionTokens);
+  });
 });

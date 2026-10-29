@@ -35,14 +35,18 @@ function ValueCells({ item, viewMode, isSummary = false }) {
   if (viewMode === "tokens") {
     return (
       <>
-        <td className="px-6 py-3 text-right text-text-muted">
-          {isSummary && item.promptTokens === undefined ? "—" : fmt(item.promptTokens)}
+        <td className="px-6 py-3 text-right">
+          {isSummary && item.promptTokens === undefined ? "—" : (
+            <span className="text-emerald-500 font-semibold font-mono">{fmt(item.promptTokens)}↑</span>
+          )}
         </td>
         <td className="px-6 py-3 text-right text-text-muted">
           {item.cachedTokens ? fmt(item.cachedTokens) : "—"}
         </td>
-        <td className="px-6 py-3 text-right text-text-muted">
-          {isSummary && item.completionTokens === undefined ? "—" : fmt(item.completionTokens)}
+        <td className="px-6 py-3 text-right">
+          {isSummary && item.completionTokens === undefined ? "—" : (
+            <span className="text-red-500 font-semibold font-mono">{fmt(item.completionTokens)}↓</span>
+          )}
         </td>
         <td className="px-6 py-3 text-right font-medium">
           {fmt(item.totalTokens)}

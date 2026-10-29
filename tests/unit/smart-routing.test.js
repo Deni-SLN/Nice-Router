@@ -97,5 +97,7 @@ describe("Smart Routing Engine", () => {
     expect(dryRun.rankedModels.length).toBe(3);
     expect(dryRun.decisionMetadata.candidatesEvaluated).toBe(3);
     expect(dryRun.decisionMetadata.policy).toBe(ROUTING_POLICY.LOWEST_COST);
+    const longCtxRoute = resolveSmartRoute({ requestedModel: "long-ctx", candidateModels: ["openai/gpt-4o", "openrouter/reflection/beam-1.0-501b-a23b"], policy: ROUTING_POLICY.CAPABILITY, userPreferences: { minContextWindow: 500000 } });
+    expect(longCtxRoute.selectedModel).toBe("openrouter/reflection/beam-1.0-501b-a23b");
   });
 });

@@ -28,6 +28,10 @@ const server = http.createServer((clientReq, clientRes) => {
   clientReq.pipe(proxyReq, { end: true });
 });
 
+server.requestTimeout = 0;
+server.timeout = 0;
+server.headersTimeout = 0;
+server.keepAliveTimeout = 600000;
 server.listen(LISTEN_PORT, "127.0.0.1", () => {
   console.log(`[NiceRouter] Port Bridge listening on http://127.0.0.1:${LISTEN_PORT} -> http://127.0.0.1:${TARGET_PORT}`);
 });

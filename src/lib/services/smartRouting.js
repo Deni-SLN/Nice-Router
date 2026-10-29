@@ -121,6 +121,12 @@ export function resolveSmartRoute({
 
   // Detect modalities/capabilities required by the request body
   const requiredCaps = body ? detectRequiredCapabilities(body) : new Set();
+  const estimatedInputTokens = (() => {
+    if (!body || typeof body !== "object") return 0;
+    const raw = JSON.stringify(body.messages || body.input || body.contents || body.prompt || "");
+    return Math.ceil(raw.length / 3.5);
+  })();
+  const requiredContextWindow = Math.max(Number(userPreferences?.minContextWindow) || 0, Number(body?.min_context_length) || 0, estimatedInputTokens);
 
   // Annotate each candidate with pricing, health, latency, and capability fit
   const candidateScores = candidateModels.map((item, originalIndex) => {
@@ -135,6 +141,10 @@ export function resolveSmartRoute({
       if (caps[c] !== true) {
         missingCaps.push(c);
       }
+    }
+    const modelContextWindow = caps.contextWindow || 200000;
+    if (requiredContextWindow > 0 && modelContextWindow < requiredContextWindow) {
+      missingCaps.push(`contextWindow(${modelContextWindow}<${requiredContextWindow})`);
     }
     const satisfiesCapabilities = missingCaps.length === 0;
 

@@ -8,7 +8,7 @@
 // header, which is forwarded untouched — stripping the marker is enough to let
 // the request route normally and still reach the upstream as a 1M request.
 
-const CONTEXT_MARKER = /\[1m\]$/i;
+const CONTEXT_MARKER = /\[(\d+(?:k|m))\]$/i;
 
 // Returns { model, contextMarker } — contextMarker is null when there is none.
 export function stripModelContextMarker(modelStr) {

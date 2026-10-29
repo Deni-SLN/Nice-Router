@@ -405,8 +405,9 @@ export async function buildModelsList(kindFilter, options = {}) {
       // published no limits at all, which leaves a client to guess from the name —
       // and it guesses high (see the snake_case note on the per-provider path).
       const { contextWindow, maxOutput } = comboSeatLimits(combo, combosByName);
-      if (Number.isFinite(contextWindow)) entry.context_length = contextWindow;
-      if (Number.isFinite(maxOutput)) entry.max_completion_tokens = maxOutput;
+      if (Number.isFinite(contextWindow)) { entry.context_length = contextWindow; entry.context_window = contextWindow; entry.max_input_tokens = contextWindow; }
+      if (Number.isFinite(maxOutput)) { entry.max_completion_tokens = maxOutput; entry.max_output_tokens = maxOutput; }
+      if (Number.isFinite(contextWindow) || Number.isFinite(maxOutput)) { entry.top_provider = { ...(Number.isFinite(contextWindow) ? { context_length: contextWindow } : {}), ...(Number.isFinite(maxOutput) ? { max_completion_tokens: maxOutput } : {}), is_moderated: false }; }
     }
     models.push(entry);
   }
@@ -606,10 +607,14 @@ export async function buildModelsList(kindFilter, options = {}) {
             if (!Number.isFinite(contextWindow)) contextWindow = fallback.contextWindow;
             if (!Number.isFinite(maxOutput)) maxOutput = fallback.maxOutput;
           }
-          if (Number.isFinite(contextWindow)) model.context_length = contextWindow;
-          if (Number.isFinite(maxOutput)) model.max_completion_tokens = maxOutput;
+          if (Number.isFinite(contextWindow)) { model.context_length = contextWindow; model.context_window = contextWindow; model.max_input_tokens = contextWindow; }
+          if (Number.isFinite(maxOutput)) { model.max_completion_tokens = maxOutput; model.max_output_tokens = maxOutput; }
+          if (Number.isFinite(contextWindow) || Number.isFinite(maxOutput)) { model.top_provider = { ...(Number.isFinite(contextWindow) ? { context_length: contextWindow } : {}), ...(Number.isFinite(maxOutput) ? { max_completion_tokens: maxOutput } : {}), is_moderated: false }; }
         }
         models.push(model);
+        if (modelId === "reflection/beam-1.0-501b-a23b") {
+          models.push({ ...model, id: "reflection/beam-1.0-501b-a23b" });
+        }
       }
 
       // Web search/fetch — provider IS the model, expose as {alias}/search and/or {alias}/fetch with explicit kind

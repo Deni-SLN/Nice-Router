@@ -5,6 +5,7 @@ import PropTypes from "prop-types";
 import Link from "next/link";
 import Card from "@/shared/components/Card";
 import Badge from "@/shared/components/Badge";
+import { exportApiKeyUsageToExcel } from "@/shared/utils/excelExport";
 
 const fmt = (n) => new Intl.NumberFormat().format(n || 0);
 const fmtCost = (n) => `$${(n || 0).toFixed(4)}`;
@@ -247,17 +248,29 @@ export default function ApiKeyUsageTab({ period = "all" }) {
             </div>
           </div>
 
-          <div className="relative w-full sm:w-64">
-            <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[18px] text-text-muted pointer-events-none">
-              search
-            </span>
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari nama atau key..."
-              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-border bg-surface text-text-main focus:outline-none focus:border-primary"
-            />
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={() => exportApiKeyUsageToExcel(filteredData, period)}
+              disabled={loading || filteredData.length === 0}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed text-white shadow-xs transition-colors cursor-pointer shrink-0"
+              title="Download laporan Excel/CSV dengan kolom rapi dan terpisah"
+            >
+              <span className="material-symbols-outlined text-[16px]">table_view</span>
+              <span>Download Excel</span>
+            </button>
+            <div className="relative w-full sm:w-64">
+              <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[18px] text-text-muted pointer-events-none">
+                search
+              </span>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Cari nama atau key..."
+                className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-border bg-surface text-text-main focus:outline-none focus:border-primary"
+              />
+            </div>
           </div>
         </div>
 

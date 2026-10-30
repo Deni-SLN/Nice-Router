@@ -73,7 +73,7 @@ function CompatibleModelRow({
           <code className="text-xs text-text-muted font-mono bg-sidebar px-1.5 py-0.5 rounded truncate max-w-[180px] sm:max-w-[240px]" title={fullModel}>
             {fullModel}
           </code>
-          {caps && <CapacityBadges caps={caps} colorOverride="text-text-muted/70" size={12} />}
+          {caps && <CapacityBadges caps={caps} size={13} />}
           <div className="relative group/btn shrink-0">
             <button
               onClick={() => onCopy(fullModel, `model-${modelId}`)}

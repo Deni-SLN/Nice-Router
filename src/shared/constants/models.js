@@ -41,9 +41,12 @@ export const getModelKind = (m, fallback = null) => m?.kind || m?.type || fallba
 
 // Capacity metadata for UI badges — icon + label + color per capability.
 export const CAPACITY_META = {
-  vision: { icon: "visibility", label: "Vision", desc: "Supports image input", color: "text-blue-500" },
-  // search: temporarily hidden (feature not wired yet)
-  reasoning: { icon: "neurology", label: "Reasoning", desc: "Supports reasoning / thinking", color: "text-amber-500" },
+  tools: { icon: "construction", label: "Tools", desc: "Mendukung Function Calling / Tools (cocok untuk Coding Agent & Automasi)", color: "text-amber-500" },
+  vision: { icon: "visibility", label: "Vision", desc: "Mendukung input visual / analisis gambar", color: "text-blue-500" },
+  reasoning: { icon: "neurology", label: "Reasoning", desc: "Mendukung Deep Thinking & penalaran bertahap (CoT)", color: "text-purple-500" },
+  search: { icon: "travel_explore", label: "Web Search", desc: "Mendukung pencarian web & grounding data terkini", color: "text-emerald-500" },
+  pdf: { icon: "description", label: "PDF / Dokumen", desc: "Mendukung analisis dokumen PDF panjang", color: "text-rose-500" },
+  audioInput: { icon: "mic", label: "Audio", desc: "Mendukung input audio / suara", color: "text-pink-500" },
 };
 
 // Realtime STT transport markers accepted on custom models — single source of

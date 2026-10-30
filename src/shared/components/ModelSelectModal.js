@@ -83,7 +83,7 @@ export default function ModelSelectModal({
   selectedModel,
   activeProviders = [],
   title = "Select Model",
-  size = "lg",
+  size = "3xl",
   modelAliases = {},
   kindFilter = null,
   capFilter = null,
@@ -134,6 +134,8 @@ export default function ModelSelectModal({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [showFreeOnly, setShowFreeOnly] = useState(false);
+  const [contextFilter, setContextFilter] = useState("all");
+  const [selectedCapFilter, setSelectedCapFilter] = useState("all");
   const [combos, setCombos] = useState([]);
   const [providerNodes, setProviderNodes] = useState([]);
   const [customModels, setCustomModels] = useState([]);
@@ -603,6 +605,29 @@ export default function ModelSelectModal({
         models = models.filter((m) => getCaps(m.value)?.[capFilter] === true);
         if (models.length === 0) return;
       }
+
+      // Filter by context window length
+      if (contextFilter && contextFilter !== "all") {
+        models = models.filter((m) => {
+          const caps = getCaps(m.value);
+          const ctx = caps?.contextWindow || 0;
+          if (contextFilter === "1m") return ctx >= 1_000_000;
+          if (contextFilter === "128k") return ctx >= 128_000;
+          if (contextFilter === "32k") return ctx >= 32_000;
+          if (contextFilter === "small") return ctx > 0 && ctx < 32_000;
+          return true;
+        });
+        if (models.length === 0) return;
+      }
+
+      // Filter by selected AI tool / capability (tools, vision, reasoning, search, pdf, audioInput)
+      if (selectedCapFilter && selectedCapFilter !== "all") {
+        models = models.filter((m) => {
+          const caps = getCaps(m.value);
+          return caps?.[selectedCapFilter] === true;
+        });
+        if (models.length === 0) return;
+      }
       // Filter by category (coding, agent, chat, image, voice, free, all)
       if (selectedCategory && selectedCategory !== "all") {
         models = models.filter((m) =>
@@ -647,7 +672,7 @@ export default function ModelSelectModal({
     });
 
     return filtered;
-  }, [groupedModels, parsedQuery, addedModelValues, allowProviderWildcard, capFilter, showFreeOnly, selectedCategory, getCaps]);
+  }, [groupedModels, parsedQuery, addedModelValues, allowProviderWildcard, capFilter, showFreeOnly, selectedCategory, getCaps, contextFilter, selectedCapFilter]);
 
   // Visible models available for batch actions (excluding placeholders)
   const visibleModels = useMemo(() => {
@@ -806,6 +831,91 @@ export default function ModelSelectModal({
               </button>
             );
           })}
+        </div>
+
+        {/* Context & Capabilities Filter Bar */}
+        <div className="flex flex-wrap items-center gap-2 pt-1 pb-1">
+          {/* Context Filter Group */}
+          <div className="flex items-center gap-1 bg-surface-2/60 dark:bg-surface-2/30 p-1 rounded-lg border border-border/60">
+            <span className="text-[10px] font-semibold text-text-muted px-1 flex items-center gap-0.5">
+              <span className="material-symbols-outlined text-[12px]">data_array</span>
+              Konteks:
+            </span>
+            {[
+              { id: "all", label: "Semua" },
+              { id: "1m", label: "≥ 1M" },
+              { id: "128k", label: "≥ 128k" },
+              { id: "32k", label: "≥ 32k" },
+            ].map((ctx) => {
+              const active = contextFilter === ctx.id;
+              return (
+                <button
+                  key={ctx.id}
+                  type="button"
+                  onClick={() => setContextFilter(active && ctx.id !== "all" ? "all" : ctx.id)}
+                  className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-medium transition-all cursor-pointer border ${
+                    active
+                      ? "bg-primary text-white border-primary shadow-2xs"
+                      : "bg-surface border-border/50 text-text-muted hover:text-text-main hover:border-primary/30"
+                  }`}
+                >
+                  {ctx.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Tools & Capability Filters Group */}
+          <div className="flex items-center gap-1 bg-surface-2/60 dark:bg-surface-2/30 p-1 rounded-lg border border-border/60 overflow-x-auto scrollbar-none">
+            <span className="text-[10px] font-semibold text-text-muted px-1 flex items-center gap-0.5">
+              <span className="material-symbols-outlined text-[12px]">tune</span>
+              Fitur AI:
+            </span>
+            {[
+              { id: "tools", label: "Tools", icon: "construction", color: "text-amber-500", desc: "Mendukung Function Calling / Tools (Coding Agent)" },
+              { id: "vision", label: "Vision", icon: "visibility", color: "text-blue-500", desc: "Mendukung input visual / analisis gambar" },
+              { id: "reasoning", label: "Reasoning", icon: "neurology", color: "text-purple-500", desc: "Mendukung deep thinking / penalaran" },
+              { id: "search", label: "Web Search", icon: "travel_explore", color: "text-emerald-500", desc: "Mendukung pencarian web aktual" },
+              { id: "pdf", label: "PDF", icon: "description", color: "text-rose-500", desc: "Mendukung dokumen PDF" },
+            ].map((cap) => {
+              const active = selectedCapFilter === cap.id;
+              return (
+                <button
+                  key={cap.id}
+                  type="button"
+                  onClick={() => setSelectedCapFilter(active ? "all" : cap.id)}
+                  className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all flex items-center gap-1 cursor-pointer border ${
+                    active
+                      ? "bg-primary text-white border-primary shadow-2xs font-semibold"
+                      : "bg-surface border-border/50 text-text-muted hover:text-text-main hover:border-primary/40"
+                  }`}
+                  title={cap.desc}
+                >
+                  <span className={`material-symbols-outlined text-[13px] ${active ? "text-white" : cap.color}`}>
+                    {cap.icon}
+                  </span>
+                  <span>{cap.label}</span>
+                  {active && <span className="material-symbols-outlined text-[10px] leading-none">close</span>}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Reset Filters button if active */}
+          {(contextFilter !== "all" || selectedCapFilter !== "all") && (
+            <button
+              type="button"
+              onClick={() => {
+                setContextFilter("all");
+                setSelectedCapFilter("all");
+              }}
+              className="px-2 py-1 rounded text-[10px] font-medium text-red-500 hover:bg-red-500/10 transition-colors flex items-center gap-0.5 cursor-pointer"
+              title="Reset filter konteks & fitur"
+            >
+              <span className="material-symbols-outlined text-[12px]">restart_alt</span>
+              Reset Filter
+            </button>
+          )}
         </div>
 
         {/* Filter Sub-Bar: Hanya Gratis toggle + model counter + batch buttons */}

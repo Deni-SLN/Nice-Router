@@ -5,6 +5,8 @@ import Modal from "./Modal";
 import Input from "./Input";
 import Button from "./Button";
 import ModelSelectModal from "./ModelSelectModal";
+import CapacityBadges from "./CapacityBadges";
+import { useModelCaps } from "@/shared/hooks/useModelCaps";
 import { MODEL_CATEGORIES } from "@/shared/constants/modelCategories";
 
 const VALID_NAME_REGEX = /^[a-zA-Z0-9_.\-]+$/;
@@ -22,7 +24,7 @@ const QUICK_CATEGORY_PRESETS = [
 ];
 
 // Inline editable model item
-function ModelItem({ index, model, isFirst, isLast, onEdit, onMoveUp, onMoveDown, onRemove }) {
+function ModelItem({ index, model, isFirst, isLast, onEdit, onMoveUp, onMoveDown, onRemove, caps }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(model);
   const commit = () => {
@@ -64,6 +66,7 @@ function ModelItem({ index, model, isFirst, isLast, onEdit, onMoveUp, onMoveDown
 
 // Reusable Combo create/edit modal. forcePrefix auto-prepends to name.
 export default function ComboFormModal({ isOpen, combo, onClose, onSave, activeProviders, kindFilter = null, forcePrefix = "", title }) {
+  const { getCaps } = useModelCaps();
   // Strip prefix when editing existing combo so user only edits suffix
   const initialName = combo?.name
     ? (forcePrefix && combo.name.startsWith(forcePrefix) ? combo.name.slice(forcePrefix.length) : combo.name)
@@ -176,7 +179,7 @@ export default function ComboFormModal({ isOpen, combo, onClose, onSave, activeP
 
   return (
     <>
-      <Modal isOpen={isOpen} onClose={onClose} title={title || (isEdit ? "Edit Combo" : "Create Combo")}>
+      <Modal isOpen={isOpen} onClose={onClose} size="3xl" title={title || (isEdit ? "Edit Combo" : "Create Combo")}>
         <div className="flex flex-col gap-3">
           <div>
             {forcePrefix ? (
@@ -260,7 +263,7 @@ export default function ComboFormModal({ isOpen, combo, onClose, onSave, activeP
                     onEdit={(v) => { const a = [...models]; a[index] = v; setModels(a); }}
                     onMoveUp={() => handleMoveUp(index)}
                     onMoveDown={() => handleMoveDown(index)}
-                    onRemove={() => handleRemoveModel(index)} />
+                    onRemove={() => handleRemoveModel(index)} caps={getCaps(model)} />
                 ))}
               </div>
             )}

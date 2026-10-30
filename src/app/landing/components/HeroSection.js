@@ -10,7 +10,7 @@ export default function HeroSection() {
         {/* Version badge */}
         <div className="inline-flex items-center gap-2 rounded-full border border-[#3a2f27] bg-[#23180f]/50 px-3 py-1 text-xs font-medium text-[#f97815]">
           <span className="flex h-2 w-2 rounded-full bg-[#f97815] animate-pulse"></span>
-          v1.2 is now live
+          v1.2.1 is now live
         </div>
 
         {/* Main heading */}

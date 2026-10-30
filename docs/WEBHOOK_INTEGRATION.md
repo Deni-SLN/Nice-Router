@@ -1,6 +1,6 @@
 # Nice Router — Outbound Webhooks Integration & Security Guide
 
-Nice Router v1.2.0 includes a production-grade **Event-Driven Outbound Webhook Engine** with HMAC-SHA256 request signing, automatic retries with exponential backoff, SSRF protection, and persistent delivery logging.
+Nice Router v1.2.1 includes a production-grade **Event-Driven Outbound Webhook Engine** with HMAC-SHA256 request signing, automatic retries with exponential backoff, SSRF protection, and persistent delivery logging.
 
 ---
 

@@ -22,6 +22,14 @@ export const MODEL_CATEGORIES = [
     desc: "Hanya model dengan akses gratis (tanpa biaya token)",
   },
   {
+    id: "hermes",
+    label: "Hermes Agent",
+    shortLabel: "Hermes",
+    icon: "bolt",
+    emoji: "⚡",
+    desc: "Model yang kompatibel & optimal untuk Hermes Agent (Tools, Function Calling & Long Context)",
+  },
+  {
     id: "coding",
     label: "Coding & Pemrograman",
     shortLabel: "Coding",
@@ -63,6 +71,7 @@ export const MODEL_CATEGORIES = [
   },
 ];
 
+const HERMES_REGEX = /(hermes|nous|agent-compatible)/i;
 const CODING_REGEX = /(code|coder|coding|dev|script|program|codex|copilot|codestral|starcoder|wizardcoder|deepseek-coder|qwen.*coder|claude-3|claude-sonnet|claude-opus|gpt-4|gpt-5|gemini-.*pro|deepseek-r1|deepseek-v3|command-r)/i;
 const AGENT_REGEX = /(agent|reason|think|r1|o1|o3|sonar-deep|claude-3|claude-sonnet|claude-opus|gpt-4o|qwen-max|deepseek-r1|gemini-.*pro)/i;
 const IMAGE_REGEX = /(vision|vl|image|flux|dall-e|sdxl|diffusion|imagen|midjourney|recraft|ideogram|moondream|cogvlm)/i;
@@ -89,6 +98,14 @@ export function matchesModelCategory(model, categoryId, options = {}) {
   const caps = typeof getCaps === "function" ? (getCaps(model?.value || modelId) || {}) : (model?.caps || {});
 
   switch (categoryId) {
+    case "hermes":
+      if (HERMES_REGEX.test(str)) return true;
+      if (caps.tools === true && (caps.contextWindow === undefined || caps.contextWindow >= 16000)) return true;
+      if (/(claude-3|claude-sonnet|claude-opus|gpt-4|gpt-5|gemini-.*pro|gemini-.*flash|deepseek-chat|deepseek-v3|qwen.*coder|qwen-2\.5|command-r)/i.test(str)) {
+        return true;
+      }
+      return false;
+
     case "coding":
       return CODING_REGEX.test(str);
 

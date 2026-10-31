@@ -620,12 +620,21 @@ export default function ModelSelectModal({
         if (models.length === 0) return;
       }
 
-      // Filter by selected AI tool / capability (tools, vision, reasoning, search, pdf, audioInput)
+      // Filter by selected AI tool / capability (hermes, tools, vision, reasoning, search, pdf, audioInput)
       if (selectedCapFilter && selectedCapFilter !== "all") {
-        models = models.filter((m) => {
-          const caps = getCaps(m.value);
-          return caps?.[selectedCapFilter] === true;
-        });
+        if (selectedCapFilter === "hermes") {
+          models = models.filter((m) => {
+            const caps = getCaps(m.value) || {};
+            const str = `${m.value || m.id || ""} ${m.name || ""}`.toLowerCase();
+            if (/(hermes|nous)/i.test(str)) return true;
+            return caps.tools === true && (caps.contextWindow === undefined || caps.contextWindow >= 16000);
+          });
+        } else {
+          models = models.filter((m) => {
+            const caps = getCaps(m.value);
+            return caps?.[selectedCapFilter] === true;
+          });
+        }
         if (models.length === 0) return;
       }
       // Filter by category (coding, agent, chat, image, voice, free, all)
@@ -872,6 +881,7 @@ export default function ModelSelectModal({
               Fitur AI:
             </span>
             {[
+              { id: "hermes", label: "Hermes", icon: "bolt", color: "text-amber-400", desc: "Mendukung Hermes Agent (Tools + Min. 16k Konteks)" },
               { id: "tools", label: "Tools", icon: "construction", color: "text-amber-500", desc: "Mendukung Function Calling / Tools (Coding Agent)" },
               { id: "vision", label: "Vision", icon: "visibility", color: "text-blue-500", desc: "Mendukung input visual / analisis gambar" },
               { id: "reasoning", label: "Reasoning", icon: "neurology", color: "text-purple-500", desc: "Mendukung deep thinking / penalaran" },

@@ -13,6 +13,8 @@ const VALID_NAME_REGEX = /^[a-zA-Z0-9_.\-]+$/;
 
 const QUICK_CATEGORY_PRESETS = [
   { id: "free", label: "Semua Model Gratis", emoji: "🆓", category: "free", freeOnly: true, defaultName: "free-models", desc: "Seluruh model gratis dari semua provider aktif" },
+  { id: "hermes-free", label: "Hermes Agent (Gratis)", emoji: "⚡", category: "hermes", freeOnly: true, defaultName: "hermes-free", desc: "Model gratis yang kompatibel & optimal untuk Hermes Agent" },
+  { id: "hermes-all", label: "Semua Model Hermes Agent", emoji: "⚡", category: "hermes", freeOnly: false, defaultName: "hermes-combo", desc: "Semua model dengan tool calling & konteks optimal untuk Hermes Agent" },
   { id: "coding-free", label: "Model Coding (Gratis)", emoji: "💻", category: "coding", freeOnly: true, defaultName: "coding-free", desc: "Model pemrograman & developer yang 100% gratis" },
   { id: "coding-all", label: "Semua Model Coding", emoji: "💻", category: "coding", freeOnly: false, defaultName: "coding-combo", desc: "Semua model spesialis koding & rekayasa perangkat lunak" },
   { id: "agent-free", label: "AI Agent & Reasoning (Gratis)", emoji: "🤖", category: "agent", freeOnly: true, defaultName: "agent-free", desc: "Model agent & reasoning yang gratis tanpa biaya token" },
